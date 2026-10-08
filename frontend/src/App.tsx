@@ -19,7 +19,13 @@ import {
   QrCode,
   Users,
   FileCheck,
-  KeyRound
+  KeyRound,
+  Sparkles,
+  Send,
+  Bot,
+  Copy,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { api } from './services/api';
 import { LoginGatekeeper } from './components/LoginGatekeeper';
@@ -167,6 +173,13 @@ export default function App() {
   // Doctor consultation note
   const [newDoctorNote, setNewDoctorNote] = useState('');
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
+
+  // Doctor AI Clinical Assistant & Report Analyzer State
+  const [doctorAiQuery, setDoctorAiQuery] = useState('');
+  const [doctorAiLoading, setDoctorAiLoading] = useState(false);
+  const [doctorAiResponse, setDoctorAiResponse] = useState<any>(null);
+  const [copiedAiToNote, setCopiedAiToNote] = useState(false);
+  const [isAiChatExpanded, setIsAiChatExpanded] = useState(true);
 
 
   // Initial Data Fetch
@@ -420,6 +433,40 @@ export default function App() {
       console.error(err);
     } finally {
       setIsSubmittingNote(false);
+    }
+  };
+
+  // Handle Doctor AI Clinical Report Analysis
+  const handleDoctorAiAnalyze = async (queryOverride?: string) => {
+    const q = (queryOverride !== undefined ? queryOverride : doctorAiQuery).trim();
+    if (!q) return;
+    setDoctorAiLoading(true);
+    if (queryOverride) setDoctorAiQuery(queryOverride);
+    try {
+      const res = await api.doctorAnalyzePatient(selectedDoctorPatientId, q);
+      setDoctorAiResponse(res.data);
+    } catch (err) {
+      console.error('Doctor AI analysis error:', err);
+      try {
+        const fallback = await api.queryAI(q, undefined, selectedDoctorPatientId);
+        setDoctorAiResponse(fallback.data);
+      } catch (e) {
+        console.error(e);
+      }
+    } finally {
+      setDoctorAiLoading(false);
+    }
+  };
+
+  const handleCopyAiToConsultationNote = () => {
+    if (!doctorAiResponse) return;
+    const noteText = doctorAiResponse.copyableNote || doctorAiResponse.answer || '';
+    setNewDoctorNote(prev => (prev ? `${prev}\n\n${noteText}` : noteText));
+    setCopiedAiToNote(true);
+    setTimeout(() => setCopiedAiToNote(false), 3000);
+    const noteEl = document.getElementById('doctor-consultation-notes-section');
+    if (noteEl) {
+      noteEl.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -1586,6 +1633,417 @@ export default function App() {
               {doctorDossier && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
                   
+                  {/* ======================================================== */}
+                  {/* FRONT CHATBOT: DOCTOR CLINICAL AI & REPORT ANALYZER      */}
+                  {/* ======================================================== */}
+                  <div
+                    id="doctor-ai-chatbot-section"
+                    className="card"
+                    style={{
+                      padding: '24px',
+                      background: 'linear-gradient(135deg, #F0F9FF 0%, #FFFFFF 100%)',
+                      border: '2px solid #0284C7',
+                      borderRadius: '18px',
+                      boxShadow: '0 8px 24px rgba(2, 132, 199, 0.08)'
+                    }}
+                  >
+                    {/* Chatbot Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '12px',
+                          background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+                          color: '#FFFFFF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+                        }}>
+                          <Bot size={24} />
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A' }}>
+                              Clinical AI Copilot & Report Analyzer
+                            </span>
+                            <span style={{
+                              background: '#E0F2FE',
+                              color: '#0369A1',
+                              fontSize: '0.72rem',
+                              fontWeight: 800,
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              <Sparkles size={12} />
+                              CROSS-HOSPITAL SYNTHESIS
+                            </span>
+                          </div>
+                          <p style={{ fontSize: '0.8rem', color: '#475569', marginTop: '2px', margin: 0 }}>
+                            Write patient observations or symptoms. The AI correlates lifetime records, active/cured diseases & lab trajectories across all hospitals in real time.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{
+                          background: '#F1F5F9',
+                          border: '1px solid #CBD5E1',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          color: '#0F172A'
+                        }}>
+                          👤 Target: <strong>{doctorDossier.patient.fullName}</strong> ({doctorDossier.patient.healthId})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setIsAiChatExpanded(!isAiChatExpanded)}
+                          style={{
+                            background: '#F0F9FF',
+                            border: '1px solid #BAE6FD',
+                            color: '#0284C7',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          {isAiChatExpanded ? <><span>Collapse</span> <ChevronUp size={16} /></> : <><span>Open Assistant</span> <ChevronDown size={16} /></>}
+                        </button>
+                      </div>
+                    </div>
+
+                    {isAiChatExpanded && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Quick Prompt Chips for Physicians */}
+                        <div>
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            ⚡ Instant Clinical Analysis Presets (Click to analyze):
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {[
+                              { label: 'High Fasting Sugar & Tingling in Toes', query: 'Patient has fatigue, elevated fasting sugar, and tingling in toes. Give his report analysis.' },
+                              { label: 'Elevated BP & Chest Discomfort', query: 'Patient has elevated blood pressure and occasional chest tightness. Analyze his cardiac, lipid and hypertension history.' },
+                              { label: 'Fatigue & Knee Joint Pain', query: 'Patient reports persistent fatigue and pain in knee joints. Check past vitamin D deficiency and inflammatory records.' },
+                              { label: 'Complete Cross-Hospital Trajectory', query: 'Give complete cross-hospital lifetime report analysis, active conditions, and resolving reports.' }
+                            ].map((preset, idx) => (
+                              <button
+                                key={idx}
+                                type="button"
+                                onClick={() => handleDoctorAiAnalyze(preset.query)}
+                                style={{
+                                  background: '#FFFFFF',
+                                  border: '1px solid #BAE6FD',
+                                  color: '#0369A1',
+                                  padding: '6px 12px',
+                                  borderRadius: '20px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = '#E0F2FE')}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = '#FFFFFF')}
+                              >
+                                <Sparkles size={13} color="#0284C7" />
+                                {preset.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Doctor Chatbot Input Box */}
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleDoctorAiAnalyze();
+                          }}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '10px',
+                            background: '#FFFFFF',
+                            border: '1.5px solid #CBD5E1',
+                            borderRadius: '12px',
+                            padding: '12px'
+                          }}
+                        >
+                          <textarea
+                            rows={3}
+                            placeholder='Write clinical observations or patient symptoms, e.g. "He has persistent fatigue, fasting glucose 150 mg/dL, and elevated BP. Give his report analysis to me..."'
+                            value={doctorAiQuery}
+                            onChange={(e) => setDoctorAiQuery(e.target.value)}
+                            style={{
+                              width: '100%',
+                              border: 'none',
+                              outline: 'none',
+                              fontSize: '0.92rem',
+                              fontFamily: 'inherit',
+                              resize: 'vertical',
+                              color: '#0F172A',
+                              lineHeight: '1.5'
+                            }}
+                          />
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid #F1F5F9', paddingTop: '8px' }}>
+                            <div style={{ fontSize: '0.76rem', color: '#64748B' }}>
+                              💡 Synthesizes documents from Apollo, Fortis, Max, Dr. Lal PathLabs & Metropolis in real time.
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              {doctorAiQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setDoctorAiQuery('');
+                                    setDoctorAiResponse(null);
+                                  }}
+                                  style={{
+                                    background: 'transparent',
+                                    border: 'none',
+                                    fontSize: '0.8rem',
+                                    color: '#64748B',
+                                    cursor: 'pointer',
+                                    padding: '6px 10px'
+                                  }}
+                                >
+                                  Clear
+                                </button>
+                              )}
+                              <button
+                                type="submit"
+                                disabled={doctorAiLoading || !doctorAiQuery.trim()}
+                                className="btn-primary"
+                                style={{
+                                  background: 'linear-gradient(135deg, #0284C7 0%, #0369A1 100%)',
+                                  padding: '8px 18px',
+                                  fontSize: '0.86rem',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '8px'
+                                }}
+                              >
+                                {doctorAiLoading ? (
+                                  <>
+                                    <RefreshCw size={15} className="spin" />
+                                    Analyzing Cross-Hospital Records...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send size={15} />
+                                    Analyze Patient Reports →
+                                  </>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </form>
+
+                        {/* AI Analysis Output Display Panel */}
+                        {doctorAiResponse && (
+                          <div
+                            style={{
+                              background: '#FFFFFF',
+                              border: '1.5px solid #BAE6FD',
+                              borderRadius: '14px',
+                              padding: '22px',
+                              boxShadow: '0 4px 16px rgba(2, 132, 199, 0.06)',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '18px'
+                            }}
+                          >
+                            {/* Analysis Header Bar */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #E2E8F0', paddingBottom: '12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  background: '#E0F2FE',
+                                  color: '#0284C7',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}>
+                                  <Sparkles size={18} />
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A' }}>
+                                    Clinical Intelligence Synthesis Report
+                                  </div>
+                                  <div style={{ fontSize: '0.74rem', color: '#64748B' }}>
+                                    Verified against {doctorAiResponse.correlatedReports?.length || 0} multi-hospital reports • Deterministic Grounding
+                                  </div>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={handleCopyAiToConsultationNote}
+                                style={{
+                                  background: copiedAiToNote ? '#ECFDF5' : '#F0F9FF',
+                                  border: copiedAiToNote ? '1.5px solid #10B981' : '1.5px solid #0284C7',
+                                  color: copiedAiToNote ? '#065F46' : '#0284C7',
+                                  padding: '6px 14px',
+                                  borderRadius: '8px',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  transition: 'all 0.2s ease'
+                                }}
+                              >
+                                {copiedAiToNote ? <CheckCircle2 size={15} /> : <Copy size={15} />}
+                                {copiedAiToNote ? '✓ Copied to Consultation Note!' : '📋 Copy to Consultation Note'}
+                              </button>
+                            </div>
+
+                            {/* Correlated Conditions Badges */}
+                            {doctorAiResponse.correlatedConditions?.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '8px', textTransform: 'uppercase' }}>
+                                  Correlated Lifetime Conditions on Record:
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                  {doctorAiResponse.correlatedConditions.map((c: any, i: number) => {
+                                    const isResolved = c.currentStatus === 'RESOLVED';
+                                    return (
+                                      <span
+                                        key={i}
+                                        style={{
+                                          padding: '5px 12px',
+                                          borderRadius: '8px',
+                                          fontSize: '0.78rem',
+                                          fontWeight: 700,
+                                          background: isResolved ? '#ECFDF5' : '#FEF3C7',
+                                          color: isResolved ? '#065F46' : '#92400E',
+                                          border: isResolved ? '1px solid #A7F3D0' : '1px solid #FDE68A',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '6px'
+                                        }}
+                                      >
+                                        {isResolved ? '✓ CURED:' : '⚠️ ACTIVE:'} {c.conditionName} ({c.conditionCode || 'ICD-10'})
+                                      </span>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Quantitative Lab Trajectory Table */}
+                            {doctorAiResponse.correlatedLabs?.length > 0 && (
+                              <div>
+                                <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#475569', marginBottom: '8px', textTransform: 'uppercase' }}>
+                                  Longitudinal Laboratory Indicators Correlated:
+                                </div>
+                                <div style={{ overflowX: 'auto', border: '1px solid #E2E8F0', borderRadius: '10px' }}>
+                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
+                                    <thead>
+                                      <tr style={{ background: '#F8FAFC', borderBottom: '1px solid #E2E8F0', color: '#64748B' }}>
+                                        <th style={{ padding: '8px 12px' }}>Biomarker</th>
+                                        <th style={{ padding: '8px 12px' }}>Latest Reading</th>
+                                        <th style={{ padding: '8px 12px' }}>Ref Range</th>
+                                        <th style={{ padding: '8px 12px' }}>Flag</th>
+                                        <th style={{ padding: '8px 12px' }}>Baseline</th>
+                                        <th style={{ padding: '8px 12px' }}>Trajectory</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {doctorAiResponse.correlatedLabs.map((l: any, i: number) => (
+                                        <tr key={i} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                                          <td style={{ padding: '8px 12px', fontWeight: 700, color: '#0F172A' }}>{l.parameterName}</td>
+                                          <td style={{ padding: '8px 12px', fontWeight: 800, color: '#0284C7' }}>
+                                            {l.latestValue} {l.latestUnit}
+                                            <span style={{ fontSize: '0.7rem', color: '#64748B', display: 'block', fontWeight: 500 }}>{l.latestDate}</span>
+                                          </td>
+                                          <td style={{ padding: '8px 12px', color: '#64748B' }}>{l.referenceRange}</td>
+                                          <td style={{ padding: '8px 12px' }}>
+                                            <span className={`badge ${l.latestFlag === 'NORMAL' ? 'badge-normal' : l.latestFlag === 'HIGH' ? 'badge-danger' : 'badge-warning'}`} style={{ fontSize: '0.72rem' }}>
+                                              {l.latestFlag}
+                                            </span>
+                                          </td>
+                                          <td style={{ padding: '8px 12px', color: '#64748B' }}>{l.baselineValue} {l.latestUnit} ({l.baselineDate})</td>
+                                          <td style={{ padding: '8px 12px', fontWeight: 700, color: l.trend === 'Down' ? '#059669' : l.trend === 'Up' ? '#DC2626' : '#64748B' }}>
+                                            {l.trend === 'Down' ? '📉 Improved / Down' : l.trend === 'Up' ? '📈 Elevated' : '➡️ Stable'}
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Full Synthesized Clinical Analysis Text */}
+                            <div style={{
+                              background: '#F8FAFC',
+                              border: '1px solid #E2E8F0',
+                              borderRadius: '10px',
+                              padding: '16px',
+                              fontSize: '0.88rem',
+                              lineHeight: '1.6',
+                              color: '#334155',
+                              whiteSpace: 'pre-wrap'
+                            }}>
+                              {doctorAiResponse.answer}
+                            </div>
+
+                            {/* Multi-Hospital Provenance Document Citations */}
+                            {doctorAiResponse.citations?.length > 0 && (
+                              <div style={{ borderTop: '1px solid #F1F5F9', paddingTop: '12px' }}>
+                                <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#64748B', marginBottom: '8px' }}>
+                                  🏛️ CROSS-HOSPITAL EVIDENCE CITATIONS ({doctorAiResponse.citations.length}):
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  {doctorAiResponse.citations.map((c: any, i: number) => (
+                                    <div key={i} style={{ fontSize: '0.78rem', color: '#475569', background: '#F8FAFC', padding: '6px 12px', borderRadius: '6px', border: '1px solid #E2E8F0' }}>
+                                      📄 <strong>{c.documentTitle}</strong> — {c.snippet}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Bottom Actions */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
+                              <span style={{ fontSize: '0.74rem', color: '#64748B' }}>
+                                🛡️ MediSutra Clinical Safety: Decision-support tool grounded on patient health data.
+                              </span>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <button
+                                  type="button"
+                                  onClick={handleCopyAiToConsultationNote}
+                                  className="btn-primary"
+                                  style={{ padding: '6px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                >
+                                  {copiedAiToNote ? <CheckCircle2 size={14} /> : <Copy size={14} />}
+                                  {copiedAiToNote ? '✓ Inserted to Note' : 'Insert to Consultation Note'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
                   {/* Patient Core Clinical Summary Bar */}
                   <div className="card" style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -2053,7 +2511,7 @@ export default function App() {
                   </div>
 
                   {/* Doctor Consultation Note & Assessment Form */}
-                  <div className="card" style={{ padding: '22px' }}>
+                  <div id="doctor-consultation-notes-section" className="card" style={{ padding: '22px' }}>
                     <h4 style={{ fontSize: '1.15rem', color: '#0F172A', marginBottom: '8px' }}>
                       Add Clinical Assessment & Consultation Note
                     </h4>

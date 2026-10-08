@@ -110,10 +110,17 @@ class ApiService {
   }
 
   // AI & Evidence
-  async queryAI(query: string, conversationId?: string) {
+  async queryAI(query: string, conversationId?: string, patientId?: string) {
     return this.request('/ai/query', {
       method: 'POST',
-      body: JSON.stringify({ query, conversationId })
+      body: JSON.stringify({ query, conversationId, patientId })
+    });
+  }
+
+  async doctorAnalyzePatient(patientId: string, doctorObservations: string) {
+    return this.request('/ai/doctor-analysis', {
+      method: 'POST',
+      body: JSON.stringify({ patientId, doctorObservations })
     });
   }
 

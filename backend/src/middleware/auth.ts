@@ -52,3 +52,19 @@ export const requireRole = (allowedRoles: Array<'PATIENT' | 'DOCTOR' | 'ADMIN'>)
     next();
   };
 };
+
+export const optionalAuth = (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as AuthenticatedUser;
+      req.user = decoded;
+    } catch {
+      // Ignore invalid token in optional auth
+    }
+  }
+  next();
+};
+
