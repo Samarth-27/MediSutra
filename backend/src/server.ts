@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import { CONFIG } from './config';
 
 import authRouter from './modules/auth/authRouter';
@@ -30,15 +32,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// Root Health Check
-app.get('/', (req, res) => {
-  res.json({
-    status: 'online',
-    platform: 'MediSutra Longitudinal Personal Health Intelligence Platform',
-    version: '1.0.0',
-    timestamp: new Date().toISOString()
-  });
-});
+// Dedicated Cloud & Render Health Check Endpoints
+const healthPayload = {
+  status: 'online',
+  platform: 'MediSutra Longitudinal Personal Health Intelligence Platform',
+  version: '1.0.0',
+  environment: CONFIG.ENV
+};
+app.get('/health', (req, res) => res.json({ ...healthPayload, timestamp: new Date().toISOString() }));
+app.get('/api/health', (req, res) => res.json({ ...healthPayload, timestamp: new Date().toISOString() }));
+app.get('/api/v1/health', (req, res) => res.json({ ...healthPayload, timestamp: new Date().toISOString() }));
 
 // API v1 Routes
 app.use('/api/v1/auth', authRouter);
@@ -53,8 +56,35 @@ app.use('/api/v1/doctor', doctorRouter);
 app.use('/api/v1/abdm', abdmRouter);
 app.use('/api/v1/hospitals', hospitalRouter);
 
+// Locate frontend production build if present (for single-service Render deployments)
+const possibleFrontendPaths = [
+  path.resolve(__dirname, '../../frontend/dist'),
+  path.resolve(__dirname, '../frontend/dist'),
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve(process.cwd(), '../frontend/dist')
+];
+const frontendDistPath = possibleFrontendPaths.find(p => fs.existsSync(p));
 
-// Global 404
+if (frontendDistPath) {
+  console.log(`[MediSutra] Serving static production frontend from: ${frontendDistPath}`);
+  app.use(express.static(frontendDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.originalUrl.startsWith('/api/') || req.originalUrl === '/api') {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+} else {
+  // Root fallback if frontend not built alongside backend
+  app.get('/', (req, res) => {
+    res.json({
+      ...healthPayload,
+      timestamp: new Date().toISOString()
+    });
+  });
+}
+
+// Global 404 for unhandled API routes
 app.use((req, res) => {
   res.status(404).json({
     success: false,

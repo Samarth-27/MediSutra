@@ -85,3 +85,36 @@ uvicorn app.main:app --port 8000
   - M4 (Month 4): No corresponding record found in this system (`⚠`)
   - M6 (Month 6): Available (`✓`)
   - Latest: Available (`✓`)
+
+---
+
+## 5. Live Cloud Deployment (Render & GitHub)
+
+MediSutra is configured for automated cloud deployment via **Render** directly connected to this GitHub repository.
+
+### Option A: One-Click Automated Blueprint (Recommended)
+1. Log in to [Render Dashboard](https://dashboard.render.com/).
+2. Click **New +** > **Blueprint**.
+3. Select your repository: `https://github.com/Samarth-27/MediSutra`.
+4. Render will automatically read [`render.yaml`](file:///c:/Users/Lenovo/OneDrive/Desktop/MEDISUTRA/render.yaml) and configure the build:
+   - **Service Type:** Web Service (Node.js)
+   - **Build Command:** `npm run build` (builds both frontend and backend)
+   - **Start Command:** `npm start` (starts production API & serves static frontend)
+   - **Health Check:** `/api/health`
+5. Click **Apply**. Within 2 minutes, your live site will be deployed at `https://medisutra.onrender.com`!
+
+### Option B: Manual Web Service Setup
+1. On [Render](https://dashboard.render.com/), click **New +** > **Web Service**.
+2. Connect your GitHub repository `Samarth-27/MediSutra`.
+3. Fill in the following settings:
+   - **Name:** `medisutra`
+   - **Region:** Any (e.g. Oregon or Frankfurt)
+   - **Branch:** `main`
+   - **Root Directory:** *(leave blank)*
+   - **Runtime:** `Node`
+   - **Build Command:** `npm run build`
+   - **Start Command:** `npm start`
+   - **Plan:** Free
+4. Add Environment Variables:
+   - `NODE_ENV`: `production`
+5. Click **Deploy Web Service**.

@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:5000/api/v1';
+const API_BASE = (import.meta as any).env?.VITE_API_URL
+  ? `${(import.meta as any).env.VITE_API_URL.replace(/\/$/, '')}/api/v1`
+  : ((import.meta as any).env?.PROD ? '/api/v1' : 'http://localhost:5000/api/v1');
 
 class ApiService {
   private token: string | null = null;

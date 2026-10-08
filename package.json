@@ -1,0 +1,21 @@
+{
+  "name": "medisutra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MediSutra - Central Disease Cure and Ongoing Registry Platform",
+  "scripts": {
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "build:backend": "cd backend && npm install && npm run build",
+    "build": "npm run build:frontend && npm run build:backend",
+    "start": "cd backend && npm start"
+  },
+  "keywords": [
+    "healthcare",
+    "disease-registry",
+    "ehr",
+    "abdm",
+    "fhir"
+  ],
+  "author": "MediSutra",
+  "license": "MIT"
+}
