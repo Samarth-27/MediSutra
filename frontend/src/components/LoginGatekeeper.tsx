@@ -804,6 +804,7 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
                     type="button"
                     onClick={() => {
                       setCitizenId('MED-00010001');
+                      setCitizenOtp('491024');
                       onCitizenLogin('MED-00010001', '491024');
                     }}
                     style={{
@@ -823,6 +824,7 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
                     type="button"
                     onClick={() => {
                       setCitizenId('MED-00010002');
+                      setCitizenOtp('491024');
                       onCitizenLogin('MED-00010002', '491024');
                     }}
                     style={{
@@ -842,6 +844,7 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
                     type="button"
                     onClick={() => {
                       setCitizenId('MED-00010003');
+                      setCitizenOtp('491024');
                       onCitizenLogin('MED-00010003', '491024');
                     }}
                     style={{
@@ -861,6 +864,7 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
                     type="button"
                     onClick={() => {
                       setCitizenId('MED-00010004');
+                      setCitizenOtp('491024');
                       onCitizenLogin('MED-00010004', '491024');
                     }}
                     style={{

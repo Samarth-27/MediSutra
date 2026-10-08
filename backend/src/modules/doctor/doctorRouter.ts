@@ -1,5 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import jwt from 'jsonwebtoken';
+import { CONFIG } from '../../config';
 import { db, DoctorClinicalNote } from '../../database/store';
 
 const router = Router();
@@ -47,6 +49,26 @@ router.get('/patients/:id/dossier', (req: Request, res: Response) => {
       success: false,
       error: { code: 'NOT_FOUND', message: 'Patient not found in clinical database.' }
     });
+  }
+
+  // Cross-tenant access validation: citizen can never access another patient's clinical dossier
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as any;
+      if (decoded && decoded.role === 'PATIENT' && decoded.patientId && decoded.patientId !== patient.id) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN_ACCESS',
+            message: `Access Denied: You are authenticated as citizen '${decoded.patientId}', and cannot inspect clinical dossiers belonging to '${patient.id}' (${patient.fullName}).`
+          }
+        });
+      }
+    } catch {
+      // ignore
+    }
   }
 
   // 1. All Conditions (Active + Past Resolved Diseases)

@@ -121,6 +121,8 @@ export default function App() {
   const [loginFacilityCode, setLoginFacilityCode] = useState('HIP-IN-DEL-001');
   const [loginDoctorLicense, setLoginDoctorLicense] = useState('MCI-2012-44120');
   const [loginCitizenIdentifier, setLoginCitizenIdentifier] = useState('MED-00010001');
+  const [loginCitizenOtp, setLoginCitizenOtp] = useState('491024');
+  const [loginCitizenError, setLoginCitizenError] = useState('');
   const [loginSuccessNotice, setLoginSuccessNotice] = useState('');
 
   // Doctor ID Creation Modal States (Hospital Admin Action)
@@ -319,14 +321,18 @@ export default function App() {
 
   // When switching citizen DigiLocker profile
   const handleSelectDigiLockerPatient = async (pId: string) => {
-    setDigiLockerPatientId(pId);
+    // Strict multi-tenant isolation: A citizen can NEVER access another patient's vault
+    const effectiveId = authSession?.role === 'CITIZEN' && authSession.citizen?.id ? authSession.citizen.id : pId;
+    setDigiLockerPatientId(effectiveId);
     setDigiLockerLoading(true);
     try {
-      const res = await api.getCitizenDigiLocker(pId);
+      const res = await api.getCitizenDigiLocker(effectiveId);
       setDigiLockerData(res.data);
-      setSelectedDoctorPatientId(pId);
-      const dossierRes = await api.getPatientDossier(pId);
-      setDoctorDossier(dossierRes.data);
+      if (authSession?.role !== 'CITIZEN') {
+        setSelectedDoctorPatientId(effectiveId);
+        const dossierRes = await api.getPatientDossier(effectiveId);
+        setDoctorDossier(dossierRes.data);
+      }
     } catch (err) {
       console.error('Error loading citizen digilocker:', err);
     } finally {
@@ -844,9 +850,10 @@ export default function App() {
   };
 
   // Handle Citizen DigiLocker Login
-  const handleCitizenLogin = async (citizenId = loginCitizenIdentifier) => {
+  const handleCitizenLogin = async (citizenId = loginCitizenIdentifier, otp = loginCitizenOtp) => {
+    setLoginCitizenError('');
     try {
-      const res = await api.loginCitizen(citizenId);
+      const res = await api.loginCitizen(citizenId, otp);
       const pat = res.data.patient;
       setDigiLockerPatientId(pat.id);
       handleSelectDigiLockerPatient(pat.id);
@@ -865,6 +872,7 @@ export default function App() {
         setLoginSuccessNotice('');
       }, 500);
     } catch (err: any) {
+      setLoginCitizenError(err.message || 'Citizen Health Vault login failed');
       alert(err.message || 'Citizen Health Vault login failed');
       throw err;
     }
@@ -874,6 +882,7 @@ export default function App() {
   const handleLogout = () => {
     setAuthSession(null);
     localStorage.removeItem('medisutra_auth_session');
+    api.clearToken();
   };
 
   // Handle Hospital Admin Creating New Doctor ID
@@ -8014,64 +8023,67 @@ export default function App() {
 
             {/* TAB 3: CITIZEN DIGILOCKER LOGIN */}
             {loginRoleTab === 'CITIZEN' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleCitizenLogin(loginCitizenIdentifier, loginCitizenOtp);
+                }}
+                style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}
+              >
                 <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '14px', borderRadius: '12px' }}>
                   <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#059669', marginBottom: '4px' }}>
-                    🗄️ Sovereign Citizen Health DigiLocker
+                    🛡️ Secure Sovereign Citizen Health Vault
                   </div>
                   <div style={{ fontSize: '0.78rem', color: '#334155' }}>
-                    Every diagnosis, prescription, and lab report from all hospitals across India are stored in this sovereign wallet.
+                    Access your personal longitudinal health record using your confidential Unique Health ID (UHID) and verified passcode/OTP.
                   </div>
+                </div>
+
+                {loginCitizenError && (
+                  <div style={{ background: '#FEF2F2', border: '1px solid #F87171', color: '#DC2626', padding: '10px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600 }}>
+                    ⚠️ {loginCitizenError}
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0F172A', display: 'block', marginBottom: '6px' }}>
+                    Universal Health ID (UHID / ABHA):
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={loginCitizenIdentifier}
+                    onChange={(e) => {
+                      setLoginCitizenIdentifier(e.target.value);
+                      setLoginCitizenError('');
+                    }}
+                    placeholder="e.g. MED-00010001"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '0.9rem', fontWeight: 600, fontFamily: 'monospace' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: '#64748B', marginTop: '4px', display: 'block' }}>
+                    Account Isolation: Every citizen possesses a distinct health ID (e.g. MED-00010001 for Rahul Sharma, MED-00010002 for Priya Patel).
+                  </span>
                 </div>
 
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#0F172A', display: 'block', marginBottom: '6px' }}>
-                    Select Citizen Profile:
+                    Citizen Passcode / OTP:
                   </label>
-                  <select
-                    value={loginCitizenIdentifier}
-                    onChange={(e) => setLoginCitizenIdentifier(e.target.value)}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '0.9rem', fontWeight: 600 }}
-                  >
-                    {hospitalRegistry.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.fullName} ({p.healthId}) • Blood: {p.bloodGroup}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Quick 1-click citizen chips */}
-                <div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748B', display: 'block', marginBottom: '6px' }}>
-                    QUICK DEMO CITIZENS:
-                  </span>
-                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    {hospitalRegistry.slice(0, 5).map(p => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => handleCitizenLogin(p.id)}
-                        style={{
-                          background: loginCitizenIdentifier === p.id ? '#059669' : '#F8FAFC',
-                          color: loginCitizenIdentifier === p.id ? '#FFFFFF' : '#334155',
-                          border: '1px solid #CBD5E1',
-                          padding: '5px 10px',
-                          borderRadius: '8px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        {p.fullName}
-                      </button>
-                    ))}
-                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={loginCitizenOtp}
+                    onChange={(e) => {
+                      setLoginCitizenOtp(e.target.value);
+                      setLoginCitizenError('');
+                    }}
+                    placeholder="Enter 6-digit OTP / PIN"
+                    style={{ width: '100%', padding: '10px 14px', borderRadius: '10px', border: '1px solid #CBD5E1', fontSize: '0.9rem', fontWeight: 600, letterSpacing: '0.15em' }}
+                  />
                 </div>
 
                 <button
-                  type="button"
-                  onClick={() => handleCitizenLogin()}
+                  type="submit"
                   style={{
                     width: '100%',
                     padding: '12px',
@@ -8084,9 +8096,9 @@ export default function App() {
                     cursor: 'pointer'
                   }}
                 >
-                  Open Sovereign Citizen DigiLocker →
+                  Verify Credentials & Unlock Vault →
                 </button>
-              </div>
+              </form>
             )}
           </div>
         </div>

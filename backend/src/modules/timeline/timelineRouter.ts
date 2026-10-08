@@ -6,7 +6,11 @@ const router = Router();
 
 // GET /api/v1/timeline
 router.get('/', authenticateToken, (req: Request, res: Response) => {
-  const patientId = req.user?.patientId;
+  let patientId = req.user?.patientId;
+  // Non-patient roles (doctors/admins) can specify target patientId, but citizens are strictly locked to their own token patientId
+  if (req.user?.role !== 'PATIENT' && req.query.patientId) {
+    patientId = req.query.patientId as string;
+  }
   const { startDate, endDate, bodySystem, severity, conditionId } = req.query;
 
   let events = db.healthEvents.filter(e => e.patientId === patientId);

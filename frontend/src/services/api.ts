@@ -227,23 +227,31 @@ class ApiService {
   }
 
   async loginHospital(facilityCode: string, password = 'admin') {
-    return this.request('/hospitals/login', {
+    const res = await this.request('/hospitals/login', {
       method: 'POST',
       body: JSON.stringify({ facilityCode, password })
     });
+    if (res.data?.token) {
+      this.setToken(res.data.token);
+    }
+    return res;
   }
 
-  async loginDoctor(hospitalId: string, licenseNumber: string, doctorName?: string) {
-    return this.request('/hospitals/doctor/login', {
+  async loginDoctor(hospitalId: string, licenseNumber: string, doctorName?: string, password?: string) {
+    const res = await this.request('/hospitals/doctor/login', {
       method: 'POST',
-      body: JSON.stringify({ hospitalId, licenseNumber, doctorName })
+      body: JSON.stringify({ hospitalId, licenseNumber, doctorName, password })
     });
+    if (res.data?.token) {
+      this.setToken(res.data.token);
+    }
+    return res;
   }
 
-  async loginCitizen(identifier: string) {
+  async loginCitizen(identifier: string, otp?: string, password?: string) {
     const res = await this.request('/auth/citizen/login', {
       method: 'POST',
-      body: JSON.stringify({ identifier })
+      body: JSON.stringify({ identifier, otp, password })
     });
     if (res.data?.token) {
       this.setToken(res.data.token);
