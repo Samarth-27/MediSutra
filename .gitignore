@@ -23,10 +23,11 @@ pnpm-debug.log*
 lerna-debug.log*
 *.log
 
-# Python
+# Python & Office Lock Files
 __pycache__/
 *.py[cod]
 *$py.class
+~$*
 *.so
 .Python
 env/
