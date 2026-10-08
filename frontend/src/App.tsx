@@ -109,10 +109,11 @@ export default function App() {
   const [digiLockerPatientId, setDigiLockerPatientId] = useState<string>('pat-demo-001');
   const [digiLockerData, setDigiLockerData] = useState<any>(null);
   const [, setDigiLockerLoading] = useState<boolean>(false);
-  const [digiLockerSubTab, setDigiLockerSubTab] = useState<'patient-overview' | 'lifetime-diseases' | 'issued-docs' | 'card' | 'timeline' | 'trends' | 'consent' | 'ai'>('patient-overview');
+  const [digiLockerSubTab, setDigiLockerSubTab] = useState<'timeline' | 'lifetime-diseases' | 'issued-docs' | 'patient-overview' | 'card' | 'trends' | 'consent' | 'ai'>('timeline');
   const [digiLockerIssuerFilter, setDigiLockerIssuerFilter] = useState<string>('ALL');
   const [digiLockerCategoryFilter, setDigiLockerCategoryFilter] = useState<string>('ALL');
   const [digiLockerSearchQuery, setDigiLockerSearchQuery] = useState<string>('');
+  const [digiLockerTimelineFilter, setDigiLockerTimelineFilter] = useState<string>('ALL');
 
   // Dedicated Multi-Role Login Portal State
   const [loginModalOpen, setLoginModalOpen] = useState(false);
@@ -134,6 +135,14 @@ export default function App() {
   const [createDocSuccessMsg, setCreateDocSuccessMsg] = useState('');
 
   // Hospital Clinical Action Modals
+  const [onboardModalOpen, setOnboardModalOpen] = useState(false);
+  const [onboardHealthId, setOnboardHealthId] = useState('MED-00010001');
+  const [onboardDoctorName, setOnboardDoctorName] = useState('Dr. Priya Nair');
+  const [onboardDepartment, setOnboardDepartment] = useState('General Medicine');
+  const [onboardComplaint, setOnboardComplaint] = useState('Cross-Hospital Longitudinal Review & Consultation');
+  const [onboardPriority, setOnboardPriority] = useState('Routine OPD');
+  const [isOnboarding, setIsOnboarding] = useState(false);
+  const [onboardResult, setOnboardResult] = useState<any>(null);
   const [diagnosisModalOpen, setDiagnosisModalOpen] = useState(false);
   const [issueReportModalOpen, setIssueReportModalOpen] = useState(false);
   const [registerCitizenModalOpen, setRegisterCitizenModalOpen] = useState(false);
@@ -469,6 +478,43 @@ export default function App() {
     } catch (err: any) {
       console.error(err);
       alert(err.message || 'Failed to re-open condition.');
+    }
+  };
+
+  // Handle Onboarding Patient by Unique Health ID to Doctor Dashboard
+  const handleOnboardPatientToDoctor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onboardHealthId.trim()) return;
+    setIsOnboarding(true);
+    try {
+      const activeHosp = hospitals.find(h => h.id === selectedHospitalId);
+      const res = await api.onboardPatientToDoctor({
+        healthId: onboardHealthId.trim(),
+        hospitalId: activeHosp?.id || selectedHospitalId,
+        doctorName: onboardDoctorName || selectedHospitalDoctor || 'Dr. Priya Nair',
+        department: onboardDepartment,
+        chiefComplaint: onboardComplaint,
+        priority: onboardPriority
+      });
+
+      setOnboardResult(res.data);
+
+      // Refresh registry & hospital dashboard
+      const regRes = await api.getHospitalPatientRegistry();
+      setHospitalRegistry(regRes.data.patients);
+      const docPatsRes = await api.getDoctorPatients();
+      setDoctorPatients(docPatsRes.data);
+      const hDashRes = await api.getHospitalDashboard(selectedHospitalId);
+      setHospitalDashboardData(hDashRes.data);
+
+      if (res.data?.patient?.id) {
+        handleSelectDoctorPatient(res.data.patient.id);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || 'Failed to onboard patient by Unique Health ID.');
+    } finally {
+      setIsOnboarding(false);
     }
   };
 
@@ -1119,11 +1165,11 @@ export default function App() {
                 </button>
               );
             }) : [
+              { id: 'timeline', label: `🕒 All Lifetime Health Activities (${(digiLockerData?.recentTimeline?.length || timelineEvents?.length || 0)})`, icon: Clock },
+              { id: 'lifetime-diseases', label: `🩺 Lifetime Diseases (${(digiLockerData?.lifetimeDiseases?.active?.length || 0) + (digiLockerData?.lifetimeDiseases?.resolved?.length || 0)})`, icon: History },
+              { id: 'issued-docs', label: `📁 All Previous Records & Reports (${digiLockerData?.stats?.totalIssuedDocuments || 14})`, icon: FileText },
               { id: 'patient-overview', label: 'Patient Medical Profile & Vitals', icon: Activity },
-              { id: 'lifetime-diseases', label: `Lifetime Diseases & Diagnoses (${(digiLockerData?.lifetimeDiseases?.active?.length || 0) + (digiLockerData?.lifetimeDiseases?.resolved?.length || 0)})`, icon: History },
-              { id: 'issued-docs', label: `Diagnostic Records & Reports (${digiLockerData?.stats?.totalIssuedDocuments || 14})`, icon: FileText },
               { id: 'card', label: 'ABHA Health Card & Identity', icon: QrCode },
-              { id: 'timeline', label: 'Cross-Hospital Care Timeline', icon: Clock },
               { id: 'trends', label: 'Biomarkers & Laboratory Trends', icon: TrendingUp },
               { id: 'consent', label: `Data Consent & Facility Access (${digiLockerData?.facilitiesHoldingRecords?.length || 4})`, icon: Shield },
               { id: 'ai', label: 'MediSutra AI Health Assistant', icon: Sparkles }
@@ -1358,27 +1404,53 @@ export default function App() {
                   {/* High-Impact Clinical Action Buttons */}
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     {authSession.role === 'HOSPITAL_ADMIN' && (
-                      <button
-                        id="btn-issue-doctor-id"
-                        onClick={() => setCreateDoctorModalOpen(true)}
-                        style={{
-                          background: '#0284C7',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          padding: '8px 16px',
-                          borderRadius: '10px',
-                          fontWeight: 700,
-                          fontSize: '0.84rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 8px rgba(2, 132, 199, 0.35)'
-                        }}
-                      >
-                        <Users size={15} />
-                        + Issue Doctor ID
-                      </button>
+                      <>
+                        <button
+                          id="btn-onboard-patient-to-doctor"
+                          onClick={() => {
+                            setOnboardResult(null);
+                            setOnboardModalOpen(true);
+                          }}
+                          style={{
+                            background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            fontWeight: 800,
+                            fontSize: '0.84rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(5, 150, 105, 0.35)'
+                          }}
+                        >
+                          <Users size={15} />
+                          + Onboard Patient by Unique ID
+                        </button>
+                        <button
+                          id="btn-issue-doctor-id"
+                          onClick={() => setCreateDoctorModalOpen(true)}
+                          style={{
+                            background: '#0284C7',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            padding: '8px 16px',
+                            borderRadius: '10px',
+                            fontWeight: 700,
+                            fontSize: '0.84rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 8px rgba(2, 132, 199, 0.35)'
+                          }}
+                        >
+                          <Users size={15} />
+                          + Issue Doctor ID
+                        </button>
+                      </>
                     )}
 
                     {authSession.role === 'DOCTOR' && (
@@ -1526,6 +1598,27 @@ export default function App() {
 
                       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         <button
+                          id="btn-onboard-patient-hero"
+                          onClick={() => {
+                            setOnboardResult(null);
+                            setOnboardModalOpen(true);
+                          }}
+                          className="btn-primary"
+                          style={{
+                            background: 'linear-gradient(135deg, #0F766E 0%, #047857 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            padding: '10px 18px',
+                            fontSize: '0.88rem',
+                            fontWeight: 800,
+                            boxShadow: '0 4px 12px rgba(15, 118, 110, 0.25)'
+                          }}
+                        >
+                          <Users size={16} />
+                          ➕ Onboard Patient to Doctor by Unique ID
+                        </button>
+                        <button
                           onClick={() => setDiagnosisModalOpen(true)}
                           className="btn-primary"
                           style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '10px 18px', fontSize: '0.88rem', fontWeight: 700 }}
@@ -1543,6 +1636,190 @@ export default function App() {
                         </button>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Dedicated Hospital Onboarding Card: Onboard Patient by Unique ID to Doctor */}
+                  <div className="card" style={{
+                    padding: '20px 24px',
+                    background: '#FFFFFF',
+                    border: '1.5px solid #0D9488',
+                    borderRadius: '16px',
+                    boxShadow: '0 4px 16px rgba(15, 118, 110, 0.08)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                      <div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#CCFBF1', color: '#0F766E', padding: '3px 10px', borderRadius: '12px', fontSize: '0.74rem', fontWeight: 800, marginBottom: '4px' }}>
+                          <Users size={13} />
+                          HOSPITAL PATIENT INTAKE TO DOCTOR DASHBOARD
+                        </div>
+                        <h3 style={{ fontSize: '1.22rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                          Onboard Patient by Sovereign Unique ID (UHID / ABHA)
+                        </h3>
+                        <p style={{ fontSize: '0.82rem', color: '#64748B', marginTop: '3px' }}>
+                          Entering the patient's unique ID automatically links all their previous health treatments, disease history, and lab reports from any hospital in India directly into the treating doctor's dashboard.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setOnboardResult(null);
+                          setOnboardModalOpen(true);
+                        }}
+                        style={{
+                          background: '#0F766E',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          padding: '9px 18px',
+                          borderRadius: '10px',
+                          fontSize: '0.84rem',
+                          fontWeight: 800,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 2px 6px rgba(15, 118, 110, 0.25)'
+                        }}
+                      >
+                        <Users size={15} />
+                        Open Full Onboard Dialog
+                      </button>
+                    </div>
+
+                    {/* Quick Inline Onboard Bar */}
+                    <form onSubmit={handleOnboardPatientToDoctor} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', alignItems: 'flex-end', background: '#F8FAFC', padding: '14px', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                          Patient Unique ID (UHID / ABHA):
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={onboardHealthId}
+                          onChange={e => setOnboardHealthId(e.target.value)}
+                          placeholder="e.g. MED-00010001"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1.5px solid #0F766E', fontSize: '0.88rem', fontFamily: 'monospace', fontWeight: 700, background: '#FFFFFF' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                          Assign to Doctor:
+                        </label>
+                        <select
+                          value={onboardDoctorName}
+                          onChange={e => setOnboardDoctorName(e.target.value)}
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.85rem', fontWeight: 600, background: '#FFFFFF' }}
+                        >
+                          {(hospitals.find(h => h.id === selectedHospitalId)?.activeDoctors || [
+                            { name: 'Dr. Priya Nair', specialization: 'Endocrinology' },
+                            { name: 'Dr. Alok Sen', specialization: 'Internal Medicine' },
+                            { name: 'Dr. Sunita Rao', specialization: 'Pulmonology' }
+                          ]).map((doc: any, i: number) => (
+                            <option key={i} value={doc.name}>
+                              {doc.name} ({doc.specialization || 'Attending'})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '4px' }}>
+                          Chief Complaint / Reason:
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={onboardComplaint}
+                          onChange={e => setOnboardComplaint(e.target.value)}
+                          placeholder="e.g. Cross-hospital record review"
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.85rem', background: '#FFFFFF' }}
+                        />
+                      </div>
+
+                      <div>
+                        <button
+                          type="submit"
+                          disabled={isOnboarding}
+                          style={{
+                            width: '100%',
+                            padding: '10px 16px',
+                            background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '0.86rem',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            boxShadow: '0 2px 6px rgba(5, 150, 105, 0.3)'
+                          }}
+                        >
+                          <CheckCircle2 size={15} />
+                          {isOnboarding ? 'Linking All Records...' : 'Onboard & Link Treatments'}
+                        </button>
+                      </div>
+                    </form>
+
+                    {/* Quick Preset Patients Chips */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.74rem', color: '#64748B', fontWeight: 700 }}>QUICK ONBOARD PRESET:</span>
+                      {hospitalRegistry.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setOnboardHealthId(p.healthId)}
+                          style={{
+                            background: onboardHealthId === p.healthId ? '#CCFBF1' : '#F1F5F9',
+                            color: onboardHealthId === p.healthId ? '#0F766E' : '#475569',
+                            border: onboardHealthId === p.healthId ? '1.5px solid #0F766E' : '1px solid #CBD5E1',
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.76rem',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          👤 {p.fullName} ({p.healthId})
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Immediate Onboard Success Notice */}
+                    {onboardResult && (
+                      <div style={{ marginTop: '12px', padding: '12px 16px', background: '#ECFDF5', border: '1.5px solid #A7F3D0', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                        <div>
+                          <div style={{ color: '#065F46', fontWeight: 800, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <CheckCircle2 size={16} />
+                            {onboardResult.message || `Patient onboarded to ${onboardResult.assignedDoctor}'s dashboard!`}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: '#047857', marginTop: '3px' }}>
+                            Linked <strong>{onboardResult.recordsLinked?.totalDocumentsCount || 0} previous hospital records</strong> and <strong>{onboardResult.recordsLinked?.totalConditionsCount || 0} lifetime diseases</strong> across <strong>{onboardResult.recordsLinked?.facilitiesCount || 1} network hospitals</strong>.
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (onboardResult.patient?.id) {
+                              handleSelectDoctorPatient(onboardResult.patient.id);
+                            }
+                          }}
+                          style={{
+                            background: '#059669',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            padding: '6px 14px',
+                            borderRadius: '8px',
+                            fontSize: '0.8rem',
+                            fontWeight: 800,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          View in Doctor Dashboard →
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Active Patient Switcher & Demographic Bar */}
@@ -3969,30 +4246,183 @@ export default function App() {
                 </div>
               )}
 
-              {/* 4. SUBTAB: MULTI-HOSPITAL TIMELINE */}
+              {/* 1. SUBTAB: ALL PREVIOUS LIFETIME HEALTH ACTIVITIES THROUGHOUT LIFE */}
               {digiLockerSubTab === 'timeline' && (
-                <div className="card" style={{ padding: '24px' }}>
-                  <h2 style={{ fontSize: '1.35rem', color: '#0F172A', marginBottom: '14px' }}>
-                    Multi-Hospital Health Timeline
-                  </h2>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {(digiLockerData?.recentTimeline || timelineEvents || []).map((e: any) => (
-                      <div key={e.id} style={{ display: 'flex', gap: '16px', padding: '14px', background: '#F8FAFC', borderRadius: '12px', border: '1px solid #E2E8F0' }}>
-                        <div style={{ fontSize: '1.3rem' }}>
-                          {e.eventType === 'LAB_RESULT' ? '🧪' : e.eventType === 'DIAGNOSIS' ? '🩺' : '📄'}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Timeline Header Card */}
+                  <div className="card" style={{ padding: '24px 28px', background: 'linear-gradient(135deg, #F0FDF4 0%, #FFFFFF 50%, #ECFEFF 100%)', border: '1.5px solid #A7F3D0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                      <div style={{ maxWidth: '720px' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: '#DCFCE7', color: '#15803D', padding: '4px 12px', borderRadius: '16px', fontSize: '0.76rem', fontWeight: 800, marginBottom: '8px' }}>
+                          <Clock size={14} />
+                          COMPLETE LIFELONG HEALTH CHRONICLE
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A' }}>{e.title}</h4>
-                            <span style={{ fontSize: '0.78rem', color: '#64748B' }}>{e.eventDate}</span>
-                          </div>
-                          <p style={{ fontSize: '0.84rem', color: '#334155', marginTop: '4px' }}>{e.summary}</p>
-                          <div style={{ fontSize: '0.74rem', color: '#0F766E', marginTop: '4px', fontWeight: 600 }}>
-                            Facility: {e.hospitalFacility || 'Accredited Health Center'}
-                          </div>
+                        <h2 style={{ fontSize: '1.55rem', fontWeight: 900, color: '#0F172A', lineHeight: 1.25 }}>
+                          All Lifetime Health Activities & Treatments Throughout Life
+                        </h2>
+                        <p style={{ fontSize: '0.86rem', color: '#475569', marginTop: '6px', lineHeight: 1.5 }}>
+                          Every hospital consultation, doctor checkup, disease diagnosis, confirmed clinical cure, and laboratory test result conducted at any hospital across India is chronicled below in chronological order.
+                        </p>
+                      </div>
+
+                      {/* Quick Summary Pill */}
+                      <div style={{ background: '#FFFFFF', padding: '12px 18px', borderRadius: '12px', border: '1px solid #CBD5E1', textAlign: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+                        <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 700 }}>TOTAL LIFETIME ACTIVITIES</div>
+                        <div style={{ fontSize: '1.6rem', fontWeight: 900, color: '#0F766E' }}>
+                          {(digiLockerData?.recentTimeline || timelineEvents || []).length}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: '#059669', fontWeight: 700 }}>
+                          Across {digiLockerData?.facilitiesHoldingRecords?.length || 4} Connected Facilities
                         </div>
                       </div>
-                    ))}
+                    </div>
+
+                    {/* Activity Filter Chips Bar */}
+                    <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#64748B' }}>FILTER ACTIVITY:</span>
+                        {[
+                          { id: 'ALL', label: 'All Activities', icon: '📋' },
+                          { id: 'CONSULTATION', label: 'Hospital Visits & Onboarding', icon: '🏥' },
+                          { id: 'DIAGNOSIS', label: 'Diagnoses & Cures', icon: '🩺' },
+                          { id: 'LAB_RESULT', label: 'Diagnostic Lab Reports', icon: '🧪' }
+                        ].map(f => {
+                          const isSel = digiLockerTimelineFilter === f.id;
+                          return (
+                            <button
+                              key={f.id}
+                              type="button"
+                              onClick={() => setDigiLockerTimelineFilter(f.id)}
+                              style={{
+                                padding: '6px 14px',
+                                borderRadius: '8px',
+                                border: isSel ? '2px solid #0F766E' : '1px solid #CBD5E1',
+                                background: isSel ? '#0F766E' : '#FFFFFF',
+                                color: isSel ? '#FFFFFF' : '#334155',
+                                fontWeight: isSel ? 800 : 600,
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span>{f.icon}</span>
+                              <span>{f.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div style={{ fontSize: '0.78rem', color: '#64748B' }}>
+                        Showing <strong>{
+                          (digiLockerData?.recentTimeline || timelineEvents || []).filter((e: any) =>
+                            digiLockerTimelineFilter === 'ALL' || e.eventType === digiLockerTimelineFilter
+                          ).length
+                        }</strong> records
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chronological Activity Feed */}
+                  <div className="card" style={{ padding: '24px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                      {(digiLockerData?.recentTimeline || timelineEvents || [])
+                        .filter((e: any) => digiLockerTimelineFilter === 'ALL' || e.eventType === digiLockerTimelineFilter)
+                        .map((e: any, idx: number) => {
+                          const isCure = (e.title && e.title.toLowerCase().includes('cure')) || (e.summary && e.summary.toLowerCase().includes('cured'));
+                          const isDiagnosis = e.eventType === 'DIAGNOSIS' && !isCure;
+                          const isLab = e.eventType === 'LAB_RESULT';
+
+                          return (
+                            <div
+                              key={e.id || idx}
+                              style={{
+                                display: 'flex',
+                                gap: '16px',
+                                padding: '18px 20px',
+                                background: isCure ? '#F0FDF4' : isDiagnosis ? '#FFFBEB' : '#F8FAFC',
+                                borderRadius: '14px',
+                                border: isCure ? '1.5px solid #86EFAC' : isDiagnosis ? '1.5px solid #FDE68A' : '1px solid #E2E8F0',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <div style={{
+                                width: '44px',
+                                height: '44px',
+                                borderRadius: '12px',
+                                background: isCure ? '#DCFCE7' : isDiagnosis ? '#FEF3C7' : isLab ? '#DBEAFE' : '#E0E7FF',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '1.3rem',
+                                flexShrink: 0
+                              }}>
+                                {isCure ? '✓' : isDiagnosis ? '🩺' : isLab ? '🧪' : '🏥'}
+                              </div>
+
+                              <div style={{ flex: 1 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '6px' }}>
+                                  <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                      <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: isCure ? '#065F46' : isDiagnosis ? '#92400E' : '#0F172A', margin: 0 }}>
+                                        {e.title}
+                                      </h4>
+                                      <span
+                                        className="badge"
+                                        style={{
+                                          background: isCure ? '#059669' : isDiagnosis ? '#F59E0B' : isLab ? '#2563EB' : '#4F46E5',
+                                          color: '#FFFFFF',
+                                          fontWeight: 800,
+                                          fontSize: '0.72rem'
+                                        }}
+                                      >
+                                        {isCure ? 'CLINICAL CURE' : e.eventType || 'ACTIVITY'}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.78rem', color: '#64748B', marginTop: '3px' }}>
+                                      Date of Activity: <strong style={{ color: '#0F172A' }}>{e.eventDate}</strong>
+                                      {e.bodySystem && <> • System: <strong>{e.bodySystem}</strong></>}
+                                    </div>
+                                  </div>
+
+                                  <div style={{ textAlign: 'right' }}>
+                                    <span style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      background: '#FFFFFF',
+                                      border: '1px solid #CBD5E1',
+                                      padding: '4px 10px',
+                                      borderRadius: '8px',
+                                      fontSize: '0.76rem',
+                                      fontWeight: 700,
+                                      color: '#0F766E'
+                                    }}>
+                                      🏛️ {e.hospitalFacility || 'Accredited Healthcare Facility'}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <p style={{ fontSize: '0.86rem', color: '#334155', lineHeight: '1.55', margin: '6px 0 8px 0' }}>
+                                  {e.summary}
+                                </p>
+
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '8px', fontSize: '0.78rem' }}>
+                                  <div style={{ color: '#047857', fontWeight: 600 }}>
+                                    {e.attendingDoctor ? `👨‍⚕️ Attending Physician: ${e.attendingDoctor}` : 'Verified Network Encounter'}
+                                  </div>
+                                  <div style={{ color: '#64748B' }}>
+                                    Audit ID: <code style={{ fontSize: '0.74rem', background: '#F1F5F9', padding: '2px 6px', borderRadius: '4px' }}>{e.id}</code>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
                   </div>
                 </div>
               )}
@@ -6007,6 +6437,236 @@ export default function App() {
                     >
                       <CheckCircle2 size={16} />
                       {isSubmittingCure ? 'Recording Cure...' : 'Confirm & Certify Clinical Cure'}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* MODAL: ONBOARD PATIENT TO DOCTOR BY UNIQUE HEALTH ID     */}
+      {/* ======================================================== */}
+      {onboardModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 110,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ maxWidth: '640px', width: '100%', maxHeight: '92vh', overflowY: 'auto', padding: '28px', border: '2px solid #0F766E' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid #E2E8F0', paddingBottom: '14px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <span className="badge" style={{ background: '#CCFBF1', color: '#0F766E', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <Users size={13} />
+                    HOSPITAL INTAKE & DOCTOR ASSIGNMENT
+                  </span>
+                  <span className="badge badge-normal">
+                    Central Health Record Linkage
+                  </span>
+                </div>
+                <h3 style={{ fontSize: '1.35rem', color: '#0F172A', fontWeight: 800 }}>
+                  Onboard Patient to Doctor Dashboard
+                </h3>
+                <p style={{ fontSize: '0.84rem', color: '#64748B', marginTop: '4px' }}>
+                  Enter the citizen's Unique Health ID to immediately link and import their lifetime health treatments from all hospitals.
+                </p>
+              </div>
+              <button 
+                onClick={() => setOnboardModalOpen(false)}
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: '8px', padding: '6px', cursor: 'pointer' }}
+              >
+                <X size={18} color="#64748B" />
+              </button>
+            </div>
+
+            {onboardResult ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ padding: '20px', background: '#ECFDF5', border: '1.5px solid #6EE7B7', borderRadius: '12px', textAlign: 'center', color: '#065F46' }}>
+                  <CheckCircle2 size={40} color="#059669" style={{ margin: '0 auto 10px auto' }} />
+                  <div style={{ fontSize: '1.15rem', fontWeight: 800 }}>{onboardResult.message}</div>
+                  <div style={{ fontSize: '0.84rem', marginTop: '6px', color: '#047857' }}>
+                    Patient: <strong>{onboardResult.patient?.fullName}</strong> ({onboardResult.patient?.healthId})
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                  <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 700 }}>RECORDS LINKED</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#0F766E' }}>{onboardResult.recordsLinked?.totalReportsCount || 0}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Diagnostic Reports</div>
+                  </div>
+                  <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 700 }}>LIFETIME DISEASES</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#D97706' }}>{onboardResult.recordsLinked?.totalConditionsCount || 0}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Active & Resolved</div>
+                  </div>
+                  <div style={{ background: '#F8FAFC', padding: '12px', borderRadius: '10px', textAlign: 'center', border: '1px solid #E2E8F0' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#64748B', fontWeight: 700 }}>HOSPITALS VISITED</div>
+                    <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#2563EB' }}>{onboardResult.recordsLinked?.facilitiesCount || 1}</div>
+                    <div style={{ fontSize: '0.7rem', color: '#64748B' }}>Federated Facilities</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                  <button onClick={() => setOnboardModalOpen(false)} className="btn-secondary">
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setOnboardModalOpen(false);
+                      setHospitalActiveSubTab('disease-registry');
+                    }}
+                    className="btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Stethoscope size={16} />
+                    View Patient in Doctor Dashboard →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleOnboardPatientToDoctor}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  
+                  {/* Quick Select Preset Chips */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#475569', marginBottom: '6px' }}>
+                      SELECT REGISTERED CITIZEN (OR ENTER UNIQUE ID BELOW):
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {hospitalRegistry.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setOnboardHealthId(p.healthId)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: onboardHealthId === p.healthId ? '2px solid #0F766E' : '1px solid #CBD5E1',
+                            background: onboardHealthId === p.healthId ? '#CCFBF1' : '#FFFFFF',
+                            color: onboardHealthId === p.healthId ? '#0F766E' : '#334155',
+                            fontWeight: onboardHealthId === p.healthId ? 800 : 600,
+                            fontSize: '0.8rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          👤 {p.fullName} ({p.healthId})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                      Patient Unique Health ID (UHID / ABHA ID) *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. MED-00010001"
+                      value={onboardHealthId}
+                      onChange={e => setOnboardHealthId(e.target.value)}
+                      style={{ width: '100%', padding: '10px 14px', borderRadius: '8px', border: '1.5px solid #0F766E', fontSize: '0.95rem', fontFamily: 'monospace', fontWeight: 700 }}
+                    />
+                    <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: '4px' }}>
+                      The patient's sovereign unique ID connects their full longitudinal history from all accredited hospitals.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Assign to Doctor Dashboard *
+                      </label>
+                      <select
+                        value={onboardDoctorName}
+                        onChange={e => setOnboardDoctorName(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.88rem' }}
+                      >
+                        {(hospitals.find(h => h.id === selectedHospitalId)?.activeDoctors || [
+                          { name: 'Dr. Priya Nair', specialization: 'Endocrinologist' },
+                          { name: 'Dr. Alok Sen', specialization: 'Cardiologist' },
+                          { name: 'Dr. Sunita Rao', specialization: 'Pulmonologist' }
+                        ]).map((doc: any, i: number) => (
+                          <option key={i} value={doc.name}>
+                            {doc.name} ({doc.specialization || 'Attending Specialist'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Clinical Department
+                      </label>
+                      <input
+                        type="text"
+                        value={onboardDepartment}
+                        onChange={e => setOnboardDepartment(e.target.value)}
+                        placeholder="e.g. Outpatient Medicine / Cardiology"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 140px', gap: '14px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Reason for Consultation / Chief Complaint *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={onboardComplaint}
+                        onChange={e => setOnboardComplaint(e.target.value)}
+                        placeholder="e.g. Longitudinal medical records review, diabetes management, second opinion"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.88rem' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '6px' }}>
+                        Priority
+                      </label>
+                      <select
+                        value={onboardPriority}
+                        onChange={e => setOnboardPriority(e.target.value)}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #CBD5E1', fontSize: '0.85rem' }}
+                      >
+                        <option value="Routine OPD">Routine OPD</option>
+                        <option value="Urgent">Urgent</option>
+                        <option value="Follow-up">Follow-up</option>
+                        <option value="Specialist Review">Specialist Review</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setOnboardModalOpen(false)}
+                      className="btn-secondary"
+                      disabled={isOnboarding}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isOnboarding}
+                      className="btn-primary"
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <Users size={16} />
+                      {isOnboarding ? 'Onboarding & Linking Records...' : 'Onboard & Link Cross-Hospital Records'}
                     </button>
                   </div>
                 </div>

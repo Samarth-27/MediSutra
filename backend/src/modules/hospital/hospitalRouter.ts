@@ -262,7 +262,7 @@ router.get('/patients/:patientId/digilocker', (req: Request, res: Response) => {
       },
       facilitiesHoldingRecords: Array.from(facilitiesSet),
       consentLogs,
-      recentTimeline: patientEvents.slice(0, 10)
+      recentTimeline: patientEvents
     }
   });
 });
@@ -338,6 +338,104 @@ router.get('/patients/registry', (req: Request, res: Response) => {
     data: {
       totalPatients: enrichedRegistry.length,
       patients: enrichedRegistry
+    }
+  });
+});
+
+// POST /api/v1/hospitals/onboard-patient-to-doctor - Onboard Patient by Unique Health ID & Assign to Doctor
+router.post('/onboard-patient-to-doctor', (req: Request, res: Response) => {
+  const {
+    uniqueId,
+    healthId,
+    hospitalId = 'hosp-apollo-01',
+    doctorName = 'Dr. Priya Nair',
+    department = 'General Medicine',
+    chiefComplaint = 'Cross-Hospital Longitudinal Review & Consultation',
+    priority = 'Routine OPD'
+  } = req.body;
+
+  const targetId = (healthId || uniqueId || '').trim();
+  if (!targetId) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'INVALID_INPUT', message: 'Patient Unique Health ID (UHID / ABHA) is required.' }
+    });
+  }
+
+  // Search case-insensitive by healthId, id, or exact name
+  const patient = db.patients.find(p => 
+    p.healthId.toLowerCase() === targetId.toLowerCase() ||
+    p.id.toLowerCase() === targetId.toLowerCase() ||
+    p.fullName.toLowerCase() === targetId.toLowerCase()
+  );
+
+  if (!patient) {
+    return res.status(404).json({
+      success: false,
+      error: { 
+        code: 'PATIENT_NOT_FOUND', 
+        message: `Patient with Unique Health ID '${targetId}' was not found in the national registry. Please check the ID (e.g. MED-00010001) or register them first.` 
+      }
+    });
+  }
+
+  const hospital = db.hospitals.find(h => h.id === hospitalId) || db.hospitals[0];
+
+  // Gather all historical cross-hospital records
+  const patientDocs = db.documents.filter(d => d.patientId === patient.id);
+  const patientConds = db.conditions.filter(c => c.patientId === patient.id);
+  const activeConds = patientConds.filter(c => c.currentStatus !== 'RESOLVED');
+  const resolvedConds = patientConds.filter(c => c.currentStatus === 'RESOLVED');
+  
+  const facilitiesSet = new Set<string>();
+  patientDocs.forEach(d => {
+    if (d.issuingHospital) facilitiesSet.add(d.issuingHospital);
+    else if (d.labFacility) facilitiesSet.add(d.labFacility);
+  });
+  patientConds.forEach(c => {
+    if (c.diagnosingFacility) facilitiesSet.add(c.diagnosingFacility);
+  });
+
+  // Create an onboarding event in healthEvents
+  const eventDate = new Date().toISOString().split('T')[0];
+  db.healthEvents.unshift({
+    id: `evt-onboard-${Date.now()}`,
+    patientId: patient.id,
+    eventType: 'CONSULTATION',
+    eventDate,
+    title: `Patient Onboarded & Assigned to ${doctorName}`,
+    summary: `Citizen ${patient.fullName} (${patient.healthId}) officially onboarded at ${hospital.name}. Assigned to ${doctorName} (${department}). Chief complaint: ${chiefComplaint}. Linked historical records from ${facilitiesSet.size || 1} hospitals across India.`,
+    bodySystem: 'General',
+    severity: 'NORMAL',
+    hospitalFacility: hospital.name,
+    attendingDoctor: doctorName
+  });
+
+  // Track as active assigned patient for the doctor
+  (patient as any).assignedDoctor = doctorName;
+  (patient as any).assignedHospital = hospital.name;
+  (patient as any).lastEncounterDate = eventDate;
+  (patient as any).currentComplaint = chiefComplaint;
+  (patient as any).triagePriority = priority;
+
+  return res.status(200).json({
+    success: true,
+    data: {
+      patient,
+      assignedDoctor: doctorName,
+      assignedHospital: hospital.name,
+      department,
+      chiefComplaint,
+      priority,
+      recordsLinked: {
+        totalReportsCount: patientDocs.length,
+        totalConditionsCount: patientConds.length,
+        activeConditionsCount: activeConds.length,
+        resolvedConditionsCount: resolvedConds.length,
+        facilitiesCount: facilitiesSet.size,
+        facilitiesVisited: Array.from(facilitiesSet)
+      },
+      message: `Citizen ${patient.fullName} (${patient.healthId}) successfully onboarded to ${doctorName}'s dashboard at ${hospital.name}. All previous health records from ${facilitiesSet.size || 1} hospitals across India are now linked and accessible.`
     }
   });
 });
@@ -803,3 +901,4 @@ router.post('/conditions/:conditionId/reopen', (req: Request, res: Response) => 
 });
 
 export default router;
+

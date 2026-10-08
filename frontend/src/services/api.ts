@@ -273,7 +273,20 @@ class ApiService {
       body: JSON.stringify(payload || {})
     });
   }
-}
 
+  async onboardPatientToDoctor(payload: {
+    healthId: string;
+    hospitalId?: string;
+    doctorName?: string;
+    department?: string;
+    chiefComplaint?: string;
+    priority?: string;
+  }) {
+    return this.request('/hospitals/onboard-patient-to-doctor', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+}
 
 export const api = new ApiService();
