@@ -198,3 +198,122 @@ input, select, textarea {
   color: var(--brand-primary);
   border: 1px solid var(--brand-border);
 }
+
+/* ======================================================== */
+/* CLINICAL AI COPILOT & REPORT ANALYZER LUXURY STYLES      */
+/* ======================================================== */
+@keyframes ai-pulse-glow {
+  0%, 100% {
+    box-shadow: 0 8px 32px rgba(2, 132, 199, 0.10), 0 0 0 1.5px rgba(2, 132, 199, 0.25);
+  }
+  50% {
+    box-shadow: 0 12px 42px rgba(2, 132, 199, 0.18), 0 0 0 2px rgba(14, 165, 233, 0.45);
+  }
+}
+
+@keyframes pulse-live-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 0 8px #10B981;
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.8);
+    box-shadow: 0 0 2px #10B981;
+  }
+}
+
+@keyframes rainbow-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.ai-copilot-card {
+  background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 60%, #F0F9FF 100%);
+  border: 1.5px solid rgba(2, 132, 199, 0.35);
+  border-radius: 20px;
+  padding: 26px 28px;
+  animation: ai-pulse-glow 5s infinite ease-in-out;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.ai-copilot-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #0284C7, #06B6D4, #3B82F6, #6366F1, #0284C7);
+  background-size: 200% auto;
+  animation: rainbow-shimmer 6s linear infinite;
+}
+
+.ai-prompt-pill {
+  background: #FFFFFF;
+  border: 1.2px solid #BAE6FD;
+  color: #0369A1;
+  padding: 7px 14px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(2, 132, 199, 0.08);
+}
+
+.ai-prompt-pill:hover {
+  background: #E0F2FE;
+  border-color: #0284C7;
+  color: #0284C7;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.18);
+}
+
+.ai-input-box {
+  background: #FFFFFF;
+  border: 2px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 14px 16px;
+  transition: all 0.25s ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.ai-input-box:focus-within {
+  border-color: #0284C7;
+  box-shadow: 0 0 0 4px rgba(2, 132, 199, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.ai-analyze-btn {
+  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  color: #FFFFFF;
+  padding: 10px 22px;
+  border-radius: 12px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.ai-analyze-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0369A1 0%, #075985 100%);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(2, 132, 199, 0.45);
+}
+
+.ai-analyze-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}
+
