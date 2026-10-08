@@ -104,7 +104,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
-app.listen(CONFIG.PORT, () => {
+app.listen(CONFIG.PORT, '0.0.0.0', () => {
   console.log(`=======================================================`);
   console.log(` MediSutra Core API Gateway running on port ${CONFIG.PORT}`);
   console.log(` Base URL: http://localhost:${CONFIG.PORT}/api/v1`);
