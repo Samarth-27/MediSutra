@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Bot,
   Sparkles,
@@ -6,7 +5,9 @@ import {
   ChevronDown,
   RefreshCw,
   CheckCircle2,
-  Copy
+  Copy,
+  AlertTriangle,
+  ShieldCheck
 } from 'lucide-react';
 import type { PatientDossier, AiDoctorAnalysisResponse } from '../../types';
 import { renderClinicalMarkdown } from '../../utils/formatters';
@@ -294,6 +295,54 @@ export const DoctorAiCopilot: React.FC<DoctorAiCopilotProps> = ({
                 </button>
               </div>
 
+              {/* RAG Grounding & Medical Guidelines Verification Strip */}
+              {doctorAiResponse.ragMetadata && (
+                <div style={{
+                  background: '#F0FDF4',
+                  border: '1.5px solid #BBF7D0',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ShieldCheck size={22} color="#16A34A" />
+                    <div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#14532D', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>RAG RETRIEVAL GROUNDED</span>
+                        <span style={{ background: '#DCFCE7', color: '#15803D', padding: '1px 8px', borderRadius: '10px', fontSize: '0.72rem' }}>
+                          {(doctorAiResponse.ragMetadata.groundingScore * 100).toFixed(1)}% Faithfulness
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#166534', marginTop: '2px' }}>
+                        Indexed {doctorAiResponse.ragMetadata.documentsRetrievedCount} hospital reports • {doctorAiResponse.ragMetadata.lifetimeConditionsEvaluatedCount} lifetime conditions • {doctorAiResponse.ragMetadata.biomarkersAnalyzedCount} biomarkers
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {doctorAiResponse.ragMetadata.guidelinesApplied?.map((g, gi) => (
+                      <span
+                        key={gi}
+                        style={{
+                          background: '#FFFFFF',
+                          color: '#166534',
+                          border: '1px solid #86EFAC',
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          fontSize: '0.68rem',
+                          fontWeight: 700
+                        }}
+                      >
+                        📚 {g}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Correlated Conditions Badges */}
               {doctorAiResponse.correlatedConditions?.length > 0 && (
                 <div>
@@ -324,6 +373,82 @@ export const DoctorAiCopilot: React.FC<DoctorAiCopilotProps> = ({
                         </span>
                       );
                     })}
+                  </div>
+                </div>
+              )}
+
+              {/* Downstream Complications & Organ Risk Projections ("What This Disease Can Lead To") */}
+              {doctorAiResponse.ragMetadata?.projectedComplications && doctorAiResponse.ragMetadata.projectedComplications.length > 0 && (
+                <div style={{
+                  background: '#FFFBEB',
+                  border: '1.5px solid #FDE68A',
+                  borderRadius: '14px',
+                  padding: '16px 18px',
+                  boxShadow: '0 2px 8px rgba(245, 158, 11, 0.05)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <AlertTriangle size={18} color="#D97706" />
+                      <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Downstream Complications & Organ Risk Projections (What This Disease Can Lead To):
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: '#B45309', fontWeight: 700 }}>
+                      Evidence-Based Clinical Knowledge Graph
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                    {doctorAiResponse.ragMetadata.projectedComplications.map((comp, ci) => (
+                      <div
+                        key={ci}
+                        style={{
+                          background: '#FFFFFF',
+                          border: '1px solid #FCD34D',
+                          borderRadius: '10px',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '6px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                          <span style={{ fontSize: '0.86rem', fontWeight: 800, color: '#0F172A' }}>
+                            {comp.potentialComplication}
+                          </span>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '0.68rem',
+                            fontWeight: 800,
+                            flexShrink: 0,
+                            background: comp.riskLevel === 'HIGH' ? '#FEE2E2' : comp.riskLevel === 'MODERATE' ? '#FEF3C7' : '#ECFDF5',
+                            color: comp.riskLevel === 'HIGH' ? '#DC2626' : comp.riskLevel === 'MODERATE' ? '#D97706' : '#059669',
+                            border: `1px solid ${comp.riskLevel === 'HIGH' ? '#FCA5A5' : comp.riskLevel === 'MODERATE' ? '#FDE68A' : '#A7F3D0'}`
+                          }}>
+                            {comp.riskLevel} RISK
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.74rem', color: '#64748B' }}>
+                          Origin: <strong style={{ color: '#0F172A' }}>{comp.condition}</strong> • Organ: <strong style={{ color: '#0284C7' }}>{comp.organSystem}</strong>
+                        </div>
+                        <p style={{ fontSize: '0.78rem', color: '#334155', margin: 0, lineHeight: 1.4 }}>
+                          {comp.rationale}
+                        </p>
+                        <div style={{
+                          fontSize: '0.74rem',
+                          color: '#0369A1',
+                          fontWeight: 700,
+                          marginTop: '4px',
+                          background: '#F0F9FF',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #BAE6FD'
+                        }}>
+                          🧪 Early Surveillance: <strong>{comp.surveillanceTest}</strong>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

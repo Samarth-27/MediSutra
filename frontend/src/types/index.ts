@@ -113,6 +113,25 @@ export interface PatientDossier {
   };
 }
 
+export interface ProjectedComplication {
+  condition: string;
+  potentialComplication: string;
+  organSystem: string;
+  riskLevel: 'HIGH' | 'MODERATE' | 'LOW';
+  surveillanceTest: string;
+  rationale: string;
+}
+
+export interface RagMetadata {
+  retrievalMethod: string;
+  documentsRetrievedCount: number;
+  lifetimeConditionsEvaluatedCount: number;
+  biomarkersAnalyzedCount: number;
+  groundingScore: number;
+  guidelinesApplied: string[];
+  projectedComplications: ProjectedComplication[];
+}
+
 export interface AiDoctorAnalysisResponse {
   answer: string;
   correlatedConditions: DiseaseCondition[];
@@ -131,4 +150,6 @@ export interface AiDoctorAnalysisResponse {
     documentTitle: string;
     snippet: string;
   }>;
+  ragMetadata?: RagMetadata;
 }
+
