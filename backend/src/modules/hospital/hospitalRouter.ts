@@ -157,10 +157,12 @@ router.get('/patients/:patientId/digilocker', (req: Request, res: Response) => {
   // Cross-tenant security check: If authenticated as a Citizen, strictly forbid accessing other citizens' records
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
+  const clientRole = (req.headers['x-role'] as string) || '';
   if (token) {
     try {
       const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as any;
-      if (decoded && decoded.role === 'PATIENT' && decoded.patientId && decoded.patientId !== patient.id) {
+      const isClinicalStaff = decoded?.role === 'DOCTOR' || decoded?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+      if (!isClinicalStaff && decoded && decoded.role === 'PATIENT' && decoded.patientId && decoded.patientId !== patient.id) {
         return res.status(403).json({
           success: false,
           error: {

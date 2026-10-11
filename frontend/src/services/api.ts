@@ -37,6 +37,18 @@ class ApiService {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    try {
+      const savedSession = localStorage.getItem('medisutra_auth_session');
+      if (savedSession) {
+        const sess = JSON.parse(savedSession);
+        if (sess?.role) {
+          headers['x-role'] = sess.role;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers

@@ -138,22 +138,46 @@ export const DoctorAiCopilot: React.FC<DoctorAiCopilotProps> = ({
               ⚡ Instant Clinical Analysis Presets (Click to run):
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {[
-                { icon: '🩺', label: 'High Fasting Sugar & Tingling in Toes', query: 'Patient has fatigue, elevated fasting sugar, and tingling in toes. Give his report analysis.' },
-                { icon: '🫀', label: 'Elevated BP & Chest Discomfort', query: 'Patient has elevated blood pressure and occasional chest tightness. Analyze his cardiac, lipid and hypertension history.' },
-                { icon: '🦵', label: 'Persistent Fatigue & Knee Joint Pain', query: 'Patient reports persistent fatigue and pain in knee joints. Check past vitamin D deficiency and inflammatory records.' },
-                { icon: '📋', label: 'Complete Cross-Hospital Trajectory', query: 'Give complete cross-hospital lifetime report analysis, active conditions, and resolving reports.' }
-              ].map((preset, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className="ai-prompt-pill"
-                  onClick={() => handleDoctorAiAnalyze(preset.query)}
-                >
-                  <span>{preset.icon}</span>
-                  <span>{preset.label}</span>
-                </button>
-              ))}
+              {(() => {
+                const patName = doctorDossier?.patient?.fullName || 'the patient';
+                const activeNames = doctorDossier?.clinicalOverview?.activeConditions?.map((c: any) => c.conditionName) || [];
+                const resolvedNames = doctorDossier?.clinicalOverview?.pastResolvedDiseases?.map((c: any) => c.conditionName) || [];
+                
+                const dynamicPresets = [
+                  { 
+                    icon: '📋', 
+                    label: 'Complete Cross-Hospital Trajectory', 
+                    query: `Give complete cross-hospital lifetime report analysis, active conditions, and resolving reports for ${patName}.` 
+                  },
+                  { 
+                    icon: '🩺', 
+                    label: activeNames.length > 0 ? `Active: ${activeNames.slice(0, 2).join(', ')}` : 'Active Conditions & Lab Synthesis', 
+                    query: `Analyze presenting clinical signs, current active conditions (${activeNames.join(', ') || 'None documented'}), and correlation with latest lab findings for ${patName}.` 
+                  },
+                  { 
+                    icon: '💊', 
+                    label: 'Treatment & Therapy Review', 
+                    query: `Review current treatment modifications, prescribed regimens, and longitudinal recovery progress for ${patName}.` 
+                  },
+                  { 
+                    icon: '✅', 
+                    label: resolvedNames.length > 0 ? `Cured: ${resolvedNames.slice(0, 2).join(', ')}` : 'Past Cured Conditions', 
+                    query: `Inspect historical resolved and cured diseases (${resolvedNames.join(', ') || 'None documented'}) and past laboratory baselines across all hospitals for ${patName}.` 
+                  }
+                ];
+
+                return dynamicPresets.map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    className="ai-prompt-pill"
+                    onClick={() => handleDoctorAiAnalyze(preset.query)}
+                  >
+                    <span>{preset.icon}</span>
+                    <span>{preset.label}</span>
+                  </button>
+                ));
+              })()}
             </div>
           </div>
 

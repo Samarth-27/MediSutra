@@ -100,9 +100,20 @@ export interface Doctor {
 
 export interface PatientDossier {
   patient: Patient;
-  activeConditions: DiseaseCondition[];
-  curedConditions: DiseaseCondition[];
-  allReports: DiagnosticReport[];
+  activeConditions?: DiseaseCondition[];
+  curedConditions?: DiseaseCondition[];
+  clinicalOverview?: {
+    activeConditions?: any[];
+    pastResolvedDiseases?: any[];
+    totalLifetimeDiseasesCount?: number;
+    totalPreviousReportsCount?: number;
+  };
+  reportsByYear?: Record<string, any[]>;
+  allReports?: DiagnosticReport[] | any[];
+  events?: any[];
+  labTrends?: Record<string, any[]>;
+  checkpoints?: any[];
+  doctorNotes?: any[];
   encounters?: ClinicalEncounter[];
   metrics?: {
     totalEncounters: number;

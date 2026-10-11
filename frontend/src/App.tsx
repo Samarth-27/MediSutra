@@ -164,7 +164,15 @@ export default function App() {
   useEffect(() => {
     async function loadInitial() {
       try {
-        await api.login(); // Auto-authenticate demo patient Rahul Sharma
+        // Only login demo patient if no active session or token exists
+        if (!authSession && !api.getToken()) {
+          try {
+            await api.login(); // Fallback demo authentication
+          } catch {
+            // ignore
+          }
+        }
+
         const timeRes = await api.getTimeline();
         setTimelineEvents(timeRes.data.events);
 
@@ -174,10 +182,6 @@ export default function App() {
         // Load Doctor Patients Roster
         const docPatsRes = await api.getDoctorPatients();
         setDoctorPatients(docPatsRes.data);
-
-        // Load Doctor Dossier for default patient (Rahul Sharma)
-        const dossierRes = await api.getPatientDossier('pat-demo-001');
-        setDoctorDossier(dossierRes.data);
 
         // Load Hospitals & Nationwide Patient Registry
         const hospRes = await api.getHospitals();
@@ -199,8 +203,17 @@ export default function App() {
         const regRes = await api.getHospitalPatientRegistry();
         setHospitalRegistry(regRes.data.patients);
 
+        // Load Doctor Dossier for selected patient
+        const initialDoctorPatientId = selectedDoctorPatientId || 'pat-demo-001';
+        try {
+          const dossierRes = await api.getPatientDossier(initialDoctorPatientId);
+          setDoctorDossier(dossierRes.data);
+        } catch (e) {
+          console.error('Failed loading doctor dossier in loadInitial:', e);
+        }
+
         // Load Sovereign Citizen DigiLocker for default patient or authenticated session
-        const activeCitizenId = authSession?.role === 'CITIZEN' && authSession.citizen?.id ? authSession.citizen.id : 'pat-demo-001';
+        const activeCitizenId = authSession?.role === 'CITIZEN' && authSession.citizen?.id ? authSession.citizen.id : initialDoctorPatientId;
         try {
           const lockRes = await api.getCitizenDigiLocker(activeCitizenId);
           setDigiLockerData(lockRes.data);
@@ -262,10 +275,22 @@ export default function App() {
   const handleSelectDoctorPatient = async (pId: string) => {
     setSelectedDoctorPatientId(pId);
     setDigiLockerPatientId(pId);
+
+    // Immediately reset patient-specific states so previous patient's data does not linger
+    setDoctorAiResponse(null);
+    setDoctorAiQuery('');
+    setCopiedAiToNote(false);
+    setNewDoctorNote('');
+    setReportSearchQuery('');
+    setSelectedYearFilter('ALL');
+    setSelectedCategoryFilter('ALL');
+
     try {
-      const res = await api.getPatientDossier(pId);
+      const [res, lockRes] = await Promise.all([
+        api.getPatientDossier(pId),
+        api.getCitizenDigiLocker(pId)
+      ]);
       setDoctorDossier(res.data);
-      const lockRes = await api.getCitizenDigiLocker(pId);
       setDigiLockerData(lockRes.data);
     } catch (err) {
       console.error('Error loading patient dossier:', err);
@@ -657,6 +682,27 @@ export default function App() {
       };
       setAuthSession(sess);
       localStorage.setItem('medisutra_auth_session', JSON.stringify(sess));
+
+      // Reset AI query/response and notes from any previous session
+      setDoctorAiResponse(null);
+      setDoctorAiQuery('');
+      setCopiedAiToNote(false);
+      setNewDoctorNote('');
+
+      // Refresh roster and dossier for selected patient
+      try {
+        const [regRes, docPatsRes, dossierRes] = await Promise.all([
+          api.getHospitalPatientRegistry(),
+          api.getDoctorPatients(),
+          api.getPatientDossier(selectedDoctorPatientId || 'pat-demo-001')
+        ]);
+        setHospitalRegistry(regRes.data.patients);
+        setDoctorPatients(docPatsRes.data);
+        setDoctorDossier(dossierRes.data);
+      } catch (loadErr) {
+        console.error('Failed refreshing doctor station data on login:', loadErr);
+      }
+
       setLoginSuccessNotice(`Doctor session verified for ${doc.name} (${doc.licenseNumber})`);
       setTimeout(() => {
         setLoginModalOpen(false);
@@ -702,6 +748,12 @@ export default function App() {
     setAuthSession(null);
     localStorage.removeItem('medisutra_auth_session');
     api.clearToken();
+    setDoctorDossier(null);
+    setDigiLockerData(null);
+    setDoctorAiResponse(null);
+    setDoctorAiQuery('');
+    setCopiedAiToNote(false);
+    setNewDoctorNote('');
   };
 
   // Handle Hospital Admin Creating New Doctor ID
