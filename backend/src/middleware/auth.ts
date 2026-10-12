@@ -57,12 +57,27 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 };
 
+import { db } from '../database/store';
+
 /**
  * Role-Based Access Control (RBAC) Guard
  */
 export const requireRole = (allowedRoles: UserRole[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const clientRole = (req.headers['x-role'] as UserRole) || req.user?.role;
+    if (!req.user) {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      if (token) {
+        try {
+          req.user = jwt.verify(token, CONFIG.JWT_SECRET) as AuthenticatedUser;
+        } catch {
+          return res.status(401).json({
+            success: false,
+            error: { code: 'TOKEN_INVALID', message: 'Invalid or expired authentication token.' }
+          });
+        }
+      }
+    }
 
     if (!req.user) {
       return res.status(401).json({
@@ -72,8 +87,7 @@ export const requireRole = (allowedRoles: UserRole[]) => {
     }
 
     const effectiveRole = req.user.role;
-    const hasRole = allowedRoles.includes(effectiveRole) || 
-      (clientRole && allowedRoles.includes(clientRole) && (effectiveRole === 'ADMIN' || effectiveRole === 'DOCTOR'));
+    const hasRole = allowedRoles.includes(effectiveRole);
 
     if (!hasRole) {
       return res.status(403).json({
@@ -189,14 +203,22 @@ export const requirePatientOrClinicalStaff = (paramKey = 'patientId') => {
       return next();
     }
 
-    if (user.role === UserRole.PATIENT && targetPatientId && user.patientId && user.patientId !== targetPatientId) {
-      return res.status(403).json({
-        success: false,
-        error: {
-          code: 'FORBIDDEN_TENANT_ACCESS',
-          message: `Cross-tenant access violation: You cannot access or modify records of patient '${targetPatientId}'.`
-        }
-      });
+    if (user.role === UserRole.PATIENT && targetPatientId) {
+      const isMatch = 
+        user.patientId === targetPatientId || 
+        user.userId === targetPatientId || 
+        user.patientId?.toLowerCase() === targetPatientId.toLowerCase() ||
+        db.patients.some(p => p.id === user.patientId && p.healthId.toLowerCase() === targetPatientId.toLowerCase());
+
+      if (!isMatch) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN_TENANT_ACCESS',
+            message: `Cross-tenant access violation: You cannot access or modify records of patient '${targetPatientId}'.`
+          }
+        });
+      }
     }
 
     next();

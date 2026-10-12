@@ -160,30 +160,11 @@ export default function App() {
   const [copiedAiToNote, setCopiedAiToNote] = useState(false);
   const [isAiChatExpanded, setIsAiChatExpanded] = useState(true);
 
-  // Initial Data Fetch
+  // Initial Data Fetch - Strict Role-Scoped Loading
   useEffect(() => {
     async function loadInitial() {
       try {
-        // Only login demo patient if no active session or token exists
-        if (!authSession && !api.getToken()) {
-          try {
-            await api.login(); // Fallback demo authentication
-          } catch {
-            // ignore
-          }
-        }
-
-        const timeRes = await api.getTimeline();
-        setTimelineEvents(timeRes.data.events);
-
-        const docRes = await api.getDocuments();
-        setDocuments(docRes.data.items);
-
-        // Load Doctor Patients Roster
-        const docPatsRes = await api.getDoctorPatients();
-        setDoctorPatients(docPatsRes.data);
-
-        // Load Hospitals & Nationwide Patient Registry
+        // 1. Always load public hospital network list for login selector
         const hospRes = await api.getHospitals();
         setHospitals(hospRes.data.facilities);
         if (hospRes.data.facilities?.length > 0) {
@@ -192,45 +173,30 @@ export default function App() {
           if (firstHosp.activeDoctors?.length > 0) {
             setSelectedHospitalDoctor(firstHosp.activeDoctors[0].name);
           }
+        }
+
+        // 2. If no active session, gatekeeper will be displayed; skip privileged fetches
+        if (!authSession) {
+          return;
+        }
+
+        // 3. Load role-appropriate data
+        if (authSession.role === 'DOCTOR') {
+          const [docPatsRes, regRes] = await Promise.all([
+            api.getDoctorPatients(),
+            api.getHospitalPatientRegistry()
+          ]);
+          setDoctorPatients(docPatsRes.data);
+          setHospitalRegistry(regRes.data.patients);
+
+          const initialDoctorPatientId = selectedDoctorPatientId || 'pat-demo-001';
           try {
-            const hDashRes = await api.getHospitalDashboard(firstHosp.id);
-            setHospitalDashboardData(hDashRes.data);
+            const dossierRes = await api.getPatientDossier(initialDoctorPatientId);
+            setDoctorDossier(dossierRes.data);
           } catch (e) {
-            console.error('Failed loading hospital dashboard', e);
+            console.error('Failed loading doctor dossier:', e);
           }
-        }
 
-        const regRes = await api.getHospitalPatientRegistry();
-        setHospitalRegistry(regRes.data.patients);
-
-        // Load Doctor Dossier for selected patient
-        const initialDoctorPatientId = selectedDoctorPatientId || 'pat-demo-001';
-        try {
-          const dossierRes = await api.getPatientDossier(initialDoctorPatientId);
-          setDoctorDossier(dossierRes.data);
-        } catch (e) {
-          console.error('Failed loading doctor dossier in loadInitial:', e);
-        }
-
-        // Load Sovereign Citizen DigiLocker for default patient or authenticated session
-        const activeCitizenId = authSession?.role === 'CITIZEN' && authSession.citizen?.id ? authSession.citizen.id : initialDoctorPatientId;
-        try {
-          const lockRes = await api.getCitizenDigiLocker(activeCitizenId);
-          setDigiLockerData(lockRes.data);
-          setDigiLockerPatientId(activeCitizenId);
-        } catch (e) {
-          console.error('Failed loading digilocker', e);
-        }
-
-        if (authSession?.role === 'HOSPITAL_ADMIN' && authSession.hospital?.id) {
-          setSelectedHospitalId(authSession.hospital.id);
-          try {
-            const hDashRes = await api.getHospitalDashboard(authSession.hospital.id);
-            setHospitalDashboardData(hDashRes.data);
-          } catch (e) {
-            console.error(e);
-          }
-        } else if (authSession?.role === 'DOCTOR') {
           if (authSession.hospital?.id) {
             setSelectedHospitalId(authSession.hospital.id);
             try {
@@ -243,13 +209,41 @@ export default function App() {
           if (authSession.doctor?.name) {
             setSelectedHospitalDoctor(authSession.doctor.name);
           }
+        } else if (authSession.role === 'HOSPITAL_ADMIN') {
+          const hospId = authSession.hospital?.id || selectedHospitalId;
+          setSelectedHospitalId(hospId);
+          try {
+            const [hDashRes, regRes] = await Promise.all([
+              api.getHospitalDashboard(hospId),
+              api.getHospitalPatientRegistry()
+            ]);
+            setHospitalDashboardData(hDashRes.data);
+            setHospitalRegistry(regRes.data.patients);
+          } catch (e) {
+            console.error('Failed loading hospital dashboard:', e);
+          }
+        } else if (authSession.role === 'CITIZEN') {
+          const citizenId = authSession.citizen?.id || 'pat-demo-001';
+          setDigiLockerPatientId(citizenId);
+          try {
+            const [timeRes, docRes, lockRes] = await Promise.all([
+              api.getTimeline(),
+              api.getDocuments(),
+              api.getCitizenDigiLocker(citizenId)
+            ]);
+            setTimelineEvents(timeRes.data.events);
+            setDocuments(docRes.data.items);
+            setDigiLockerData(lockRes.data);
+          } catch (e) {
+            console.error('Failed loading citizen health vault:', e);
+          }
         }
       } catch (err) {
         console.error('Error loading initial data:', err);
       }
     }
     loadInitial();
-  }, []);
+  }, [authSession]);
 
   // When switching citizen DigiLocker profile
   const handleSelectDigiLockerPatient = async (pId: string) => {

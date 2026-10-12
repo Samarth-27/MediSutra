@@ -3,12 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import { CONFIG } from '../../config';
 import { db, DoctorClinicalNote } from '../../database/store';
-import { requireClinicalStaff } from '../../middleware/auth';
+import { requireClinicalStaff, requirePatientOrClinicalStaff } from '../../middleware/auth';
 
 const router = Router();
 
 // GET /api/v1/doctor/patients - Patient Roster for Doctors
-router.get('/patients', (req: Request, res: Response) => {
+router.get('/patients', requireClinicalStaff, (req: Request, res: Response) => {
   // Aggregate roster with clinical intelligence stats
   const roster = db.patients.map(p => {
     const pConditions = db.conditions.filter(c => c.patientId === p.id);
@@ -41,7 +41,7 @@ router.get('/patients', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/doctor/patients/:id/dossier - Complete Longitudinal Clinical Dossier
-router.get('/patients/:id/dossier', (req: Request, res: Response) => {
+router.get('/patients/:id/dossier', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   const patient = db.patients.find(p => p.id === id);
 
@@ -50,28 +50,6 @@ router.get('/patients/:id/dossier', (req: Request, res: Response) => {
       success: false,
       error: { code: 'NOT_FOUND', message: 'Patient not found in clinical database.' }
     });
-  }
-
-  // Cross-tenant access validation: citizen can never access another patient's clinical dossier
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  const clientRole = (req.headers['x-role'] as string) || '';
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as any;
-      const isClinicalStaff = decoded?.role === 'DOCTOR' || decoded?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
-      if (!isClinicalStaff && decoded && decoded.role === 'PATIENT' && decoded.patientId && decoded.patientId !== patient.id) {
-        return res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN_ACCESS',
-            message: `Access Denied: You are authenticated as citizen '${decoded.patientId}', and cannot inspect clinical dossiers belonging to '${patient.id}' (${patient.fullName}).`
-          }
-        });
-      }
-    } catch {
-      // ignore
-    }
   }
 
   // 1. All Conditions (Active + Past Resolved Diseases)
@@ -213,7 +191,7 @@ router.post('/patients/:id/notes', requireClinicalStaff, (req: Request, res: Res
 });
 
 // GET /api/v1/doctor/patients/:id/fhir-export - Export Full Longitudinal HL7 FHIR R4 Bundle
-router.get('/patients/:id/fhir-export', (req: Request, res: Response) => {
+router.get('/patients/:id/fhir-export', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   const patient = db.patients.find(p => p.id === id);
 
@@ -240,7 +218,7 @@ router.get('/patients/:id/fhir-export', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/doctor/patients/:id/graph - Temporal Clinical Knowledge Graph
-router.get('/patients/:id/graph', (req: Request, res: Response) => {
+router.get('/patients/:id/graph', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const { ClinicalGraphEngine } = require('../ai/clinicalGraph');
@@ -258,7 +236,7 @@ router.get('/patients/:id/graph', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/doctor/patients/:id/conditions/:condId/trajectory - Deterministic Condition Trajectory
-router.get('/patients/:id/conditions/:condId/trajectory', (req: Request, res: Response) => {
+router.get('/patients/:id/conditions/:condId/trajectory', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
   const { id, condId } = req.params;
   try {
     const { ClinicalGraphEngine } = require('../ai/clinicalGraph');
@@ -282,7 +260,7 @@ router.get('/patients/:id/conditions/:condId/trajectory', (req: Request, res: Re
 });
 
 // GET /api/v1/doctor/patients/:id/resolved-history - Verified Resolved Diseases Summary
-router.get('/patients/:id/resolved-history', (req: Request, res: Response) => {
+router.get('/patients/:id/resolved-history', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const { ClinicalGraphEngine } = require('../ai/clinicalGraph');

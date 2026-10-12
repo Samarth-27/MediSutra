@@ -352,8 +352,7 @@ router.post('/doctor-analysis', optionalAuth, (req: Request, res: Response) => {
 
   // Cross-tenant protection: Citizens can only analyze their own record
   const user = req.user;
-  const clientRole = req.headers['x-role'] as string;
-  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || user?.role === 'HOSPITAL_ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || user?.role === 'HOSPITAL_ADMIN';
   if (!isClinical && user?.role === 'PATIENT' && user.patientId && user.patientId !== targetPatient.id) {
     return res.status(403).json({
       success: false,
@@ -406,8 +405,7 @@ router.post('/query', optionalAuth, (req: Request, res: Response) => {
   
   // Cross-tenant protection: Citizens can only query their own records
   const user = req.user;
-  const clientRole = req.headers['x-role'] as string;
-  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || user?.role === 'HOSPITAL_ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || user?.role === 'HOSPITAL_ADMIN';
   if (!isClinical && user?.role === 'PATIENT' && user.patientId && user.patientId !== patient.id) {
     return res.status(403).json({
       success: false,

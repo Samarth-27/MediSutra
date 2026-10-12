@@ -18,8 +18,7 @@ router.get('/conditions/:conditionId/checkpoints', authenticateToken, (req: Requ
 
   // Cross-tenant IDOR check: Patients can only view checkpoints for their own conditions
   const user = req.user;
-  const clientRole = req.headers['x-role'] as string;
-  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || user?.role === 'HOSPITAL_ADMIN';
   if (!isClinical && user?.role === 'PATIENT' && condition.patientId !== user.patientId) {
     return res.status(403).json({
       success: false,

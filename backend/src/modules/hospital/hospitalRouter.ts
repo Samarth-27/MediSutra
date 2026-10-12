@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../../database/store';
 import { CONFIG } from '../../config';
-import { requireClinicalStaff } from '../../middleware/auth';
+import { requireClinicalStaff, requirePatientOrClinicalStaff } from '../../middleware/auth';
 
 const router = Router();
 
@@ -31,11 +31,11 @@ router.get('/:id', (req: Request, res: Response) => {
   }
 
   // Count encounters and documents issued by this hospital
-  const encountersCount = db.healthEvents.filter(e => 
+  const encountersCount = db.healthEvents.filter(e =>
     e.hospitalFacility && (e.hospitalFacility.includes(hospital.shortName) || e.hospitalFacility.includes(hospital.name))
   ).length;
 
-  const reportsCount = db.documents.filter(d => 
+  const reportsCount = db.documents.filter(d =>
     (d.issuingHospital && (d.issuingHospital.includes(hospital.shortName) || d.issuingHospital.includes(hospital.name))) ||
     (d.labFacility && (d.labFacility.includes(hospital.shortName) || d.labFacility.includes(hospital.name)))
   ).length;
@@ -65,12 +65,12 @@ router.get('/:id/dashboard', (req: Request, res: Response) => {
   }
 
   // Hospital encounters
-  const hospitalEncounters = db.healthEvents.filter(e => 
+  const hospitalEncounters = db.healthEvents.filter(e =>
     e.hospitalFacility && (e.hospitalFacility.includes(hospital.shortName) || e.hospitalFacility.includes(hospital.name))
   );
 
   // Hospital reports issued
-  const hospitalReports = db.documents.filter(d => 
+  const hospitalReports = db.documents.filter(d =>
     (d.issuingHospital && (d.issuingHospital.includes(hospital.shortName) || d.issuingHospital.includes(hospital.name))) ||
     (d.labFacility && (d.labFacility.includes(hospital.shortName) || d.labFacility.includes(hospital.name)))
   );
@@ -144,7 +144,7 @@ router.get('/:id/dashboard', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/hospitals/patients/:patientId/digilocker - Sovereign Citizen Health DigiLocker Profile
-router.get('/patients/:patientId/digilocker', (req: Request, res: Response) => {
+router.get('/patients/:patientId/digilocker', requirePatientOrClinicalStaff('patientId'), (req: Request, res: Response) => {
   const { patientId } = req.params;
   const patient = db.patients.find(p => p.id === patientId || p.healthId.toLowerCase() === patientId.toLowerCase());
 
@@ -153,28 +153,6 @@ router.get('/patients/:patientId/digilocker', (req: Request, res: Response) => {
       success: false,
       error: { code: 'PATIENT_NOT_FOUND', message: `Patient '${patientId}' was not found in the national registry.` }
     });
-  }
-
-  // Cross-tenant security check: If authenticated as a Citizen, strictly forbid accessing other citizens' records
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  const clientRole = (req.headers['x-role'] as string) || '';
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, CONFIG.JWT_SECRET) as any;
-      const isClinicalStaff = decoded?.role === 'DOCTOR' || decoded?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
-      if (!isClinicalStaff && decoded && decoded.role === 'PATIENT' && decoded.patientId && decoded.patientId !== patient.id) {
-        return res.status(403).json({
-          success: false,
-          error: {
-            code: 'FORBIDDEN_ACCESS',
-            message: `Access Denied: You are authenticated as citizen '${decoded.patientId}', and cannot access medical records belonging to '${patient.id}' (${patient.fullName}).`
-          }
-        });
-      }
-    } catch {
-      // Proceed or allow non-malformed
-    }
   }
 
   const patientDocs = db.documents.filter(d => d.patientId === patient.id);
@@ -293,12 +271,12 @@ router.get('/patients/:patientId/digilocker', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/hospitals/patients/registry - Central Nationwide Human Report Center Registry
-router.get('/patients/registry', (req: Request, res: Response) => {
+router.get('/patients/registry', requireClinicalStaff, (req: Request, res: Response) => {
   const searchQuery = (req.query.q as string || '').toLowerCase().trim();
 
   let patients = db.patients;
   if (searchQuery) {
-    patients = patients.filter(p => 
+    patients = patients.filter(p =>
       p.fullName.toLowerCase().includes(searchQuery) ||
       p.healthId.toLowerCase().includes(searchQuery) ||
       p.bloodGroup.toLowerCase().includes(searchQuery) ||
@@ -368,7 +346,7 @@ router.get('/patients/registry', (req: Request, res: Response) => {
 });
 
 // POST /api/v1/hospitals/onboard-patient-to-doctor - Onboard Patient by Unique Health ID & Assign to Doctor
-router.post('/onboard-patient-to-doctor', (req: Request, res: Response) => {
+router.post('/onboard-patient-to-doctor', requireClinicalStaff, (req: Request, res: Response) => {
   const {
     uniqueId,
     healthId,
@@ -388,7 +366,7 @@ router.post('/onboard-patient-to-doctor', (req: Request, res: Response) => {
   }
 
   // Search case-insensitive by healthId, id, or exact name
-  const patient = db.patients.find(p => 
+  const patient = db.patients.find(p =>
     p.healthId.toLowerCase() === targetId.toLowerCase() ||
     p.id.toLowerCase() === targetId.toLowerCase() ||
     p.fullName.toLowerCase() === targetId.toLowerCase()
@@ -397,9 +375,9 @@ router.post('/onboard-patient-to-doctor', (req: Request, res: Response) => {
   if (!patient) {
     return res.status(404).json({
       success: false,
-      error: { 
-        code: 'PATIENT_NOT_FOUND', 
-        message: `Patient with Unique Health ID '${targetId}' was not found in the national registry. Please check the ID (e.g. MED-00010001) or register them first.` 
+      error: {
+        code: 'PATIENT_NOT_FOUND',
+        message: `Patient with Unique Health ID '${targetId}' was not found in the national registry. Please check the ID (e.g. MED-00010001) or register them first.`
       }
     });
   }
@@ -411,7 +389,7 @@ router.post('/onboard-patient-to-doctor', (req: Request, res: Response) => {
   const patientConds = db.conditions.filter(c => c.patientId === patient.id);
   const activeConds = patientConds.filter(c => c.currentStatus !== 'RESOLVED');
   const resolvedConds = patientConds.filter(c => c.currentStatus === 'RESOLVED');
-  
+
   const facilitiesSet = new Set<string>();
   patientDocs.forEach(d => {
     if (d.issuingHospital) facilitiesSet.add(d.issuingHospital);
@@ -533,74 +511,97 @@ router.post(['/encounters/diagnosis', '/encounters/record'], requireClinicalStaf
   });
 });
 
-// POST /api/v1/hospitals/conditions/:conditionId/cure - Mark ongoing disease as cured/resolved
+// POST /api/v1/hospitals/conditions/:conditionId/cure - Officially Certify Disease as CURED
 router.post('/conditions/:conditionId/cure', requireClinicalStaff, (req: Request, res: Response) => {
   const { conditionId } = req.params;
-  const {
-    resolvedDate = new Date().toISOString().split('T')[0],
-    curedByHospital = 'Apollo Hospitals & Heart Institute',
-    doctorName = 'Attending Physician',
-    resolvingEvidence = 'Clinical examination and confirmatory follow-up investigation confirm complete clinical cure.'
-  } = req.body;
+  const { resolvedDate, curedByHospital, doctorName, resolvingEvidence } = req.body;
 
   const condition = db.conditions.find(c => c.id === conditionId);
   if (!condition) {
     return res.status(404).json({
       success: false,
-      error: { code: 'CONDITION_NOT_FOUND', message: 'Condition not found in central registry.' }
+      error: { code: 'NOT_FOUND', message: `Condition '${conditionId}' not found in registry.` }
     });
   }
 
-  condition.currentStatus = 'RESOLVED';
-  condition.resolvedDate = resolvedDate;
-  condition.notes = `${condition.notes || ''} [Clinically verified CURED on ${resolvedDate} by ${doctorName} at ${curedByHospital}. Proof: ${resolvingEvidence}]`.trim();
+  const effectiveDate = resolvedDate || new Date().toISOString().split('T')[0];
+  const certifyingHospital = curedByHospital || 'Apollo Hospitals & Heart Institute';
+  const certifyingDoc = doctorName || 'Attending Physician';
+  const evidenceText = resolvingEvidence || 'Clinical examination and confirmatory diagnostic tests verify complete disease cure.';
 
-  // Create health timeline event
-  const newEventId = `evt-cure-${Date.now()}`;
+  condition.currentStatus = 'RESOLVED';
+  condition.resolvedDate = effectiveDate;
+  condition.notes = `${condition.notes || ''} [Clinically verified CURED on ${effectiveDate} by ${certifyingDoc} at ${certifyingHospital}. Proof: ${evidenceText}]`.trim();
+  (condition as any).curedByHospital = certifyingHospital;
+  (condition as any).certifyingDoctor = certifyingDoc;
+  (condition as any).resolvingEvidence = evidenceText;
+  (condition as any).resolvingReportDetails = evidenceText;
+
+  // Prepend permanent audit health event
   db.healthEvents.unshift({
-    id: newEventId,
+    id: `evt-cure-${Date.now()}`,
     patientId: condition.patientId,
+    conditionId: condition.id,
     eventType: 'DIAGNOSIS',
-    eventDate: resolvedDate,
-    title: `CLINICAL CURE CONFIRMED: ${condition.conditionName}`,
-    summary: `Condition '${condition.conditionName}' certified resolved and cured at ${curedByHospital} by ${doctorName}. Evidence: ${resolvingEvidence}`,
-    hospitalFacility: curedByHospital,
-    attendingDoctor: doctorName,
+    eventDate: effectiveDate,
+    title: `Clinical Cure Confirmed: ${condition.conditionName}`,
+    summary: `Condition officially certified as permanently CURED by ${certifyingDoc} at ${certifyingHospital}. Clinical Evidence: ${evidenceText}`,
     bodySystem: condition.bodySystem,
-    severity: 'NORMAL'
+    severity: 'NORMAL',
+    hospitalFacility: certifyingHospital,
+    attendingDoctor: certifyingDoc
   });
 
   return res.json({
     success: true,
     data: {
       condition,
-      message: `Disease '${condition.conditionName}' has been successfully certified as CURED on ${resolvedDate} by ${doctorName} at ${curedByHospital}.`
+      message: `Disease '${condition.conditionName}' has been officially verified and certified as CURED by ${certifyingHospital}.`
     }
   });
 });
 
-// POST /api/v1/hospitals/conditions/:conditionId/reopen - Mark condition as ongoing/relapsed
+// POST /api/v1/hospitals/conditions/:conditionId/reopen - Re-open Condition for Ongoing Care
 router.post('/conditions/:conditionId/reopen', requireClinicalStaff, (req: Request, res: Response) => {
   const { conditionId } = req.params;
-  const { reason = 'Condition relapsed; re-initiating active treatment protocol.', doctorName = 'Attending Physician' } = req.body;
+  const { reason, doctorName, hospitalName } = req.body;
 
   const condition = db.conditions.find(c => c.id === conditionId);
   if (!condition) {
     return res.status(404).json({
       success: false,
-      error: { code: 'CONDITION_NOT_FOUND', message: 'Condition not found in central registry.' }
+      error: { code: 'NOT_FOUND', message: `Condition '${conditionId}' not found in registry.` }
     });
   }
 
+  const effectiveDoc = doctorName || 'Attending Physician';
+  const effectiveHosp = hospitalName || 'Network Hospital';
+  const effectiveReason = reason || 'Clinical relapse / re-evaluation required.';
+
   condition.currentStatus = 'UNDER_TREATMENT';
-  condition.resolvedDate = undefined;
-  condition.notes = `${condition.notes || ''} [Re-opened to UNDER_TREATMENT on ${new Date().toISOString().split('T')[0]} by ${doctorName}. Reason: ${reason}]`.trim();
+  condition.treatmentSummary = `Active treatment resumed: ${effectiveReason}`;
+  condition.notes = `${condition.notes || ''} [Re-opened to UNDER_TREATMENT on ${new Date().toISOString().split('T')[0]} by ${effectiveDoc}. Reason: ${effectiveReason}]`.trim();
+  delete condition.resolvedDate;
+
+  db.healthEvents.unshift({
+    id: `evt-reopen-${Date.now()}`,
+    patientId: condition.patientId,
+    conditionId: condition.id,
+    eventType: 'DIAGNOSIS',
+    eventDate: new Date().toISOString().split('T')[0],
+    title: `Active Treatment Resumed: ${condition.conditionName}`,
+    summary: `Condition re-opened for ongoing clinical management by ${effectiveDoc} at ${effectiveHosp}. Reason: ${effectiveReason}`,
+    bodySystem: condition.bodySystem,
+    severity: 'NORMAL',
+    hospitalFacility: effectiveHosp,
+    attendingDoctor: effectiveDoc
+  });
 
   return res.json({
     success: true,
     data: {
       condition,
-      message: `Condition '${condition.conditionName}' re-opened for active ongoing treatment.`
+      message: `Disease '${condition.conditionName}' has been re-opened for active ongoing treatment.`
     }
   });
 });
@@ -661,7 +662,7 @@ router.post('/reports/ingest', requireClinicalStaff, (req: Request, res: Respons
 });
 
 // POST /api/v1/hospitals/patients/register - Hospital Reception / OPD citizen enrollment
-router.post('/patients/register', (req: Request, res: Response) => {
+router.post('/patients/register', requireClinicalStaff, (req: Request, res: Response) => {
   const {
     fullName,
     dob,
@@ -704,9 +705,9 @@ router.post('/patients/register', (req: Request, res: Response) => {
 router.get('/:id/doctors', (req: Request, res: Response) => {
   const { id } = req.params;
   const q = (id || '').toLowerCase().trim();
-  const hospital = db.hospitals.find(h => 
-    h.id.toLowerCase() === q || 
-    h.facilityCode.toLowerCase() === q || 
+  const hospital = db.hospitals.find(h =>
+    h.id.toLowerCase() === q ||
+    h.facilityCode.toLowerCase() === q ||
     h.shortName.toLowerCase().includes(q) ||
     q.includes(h.shortName.toLowerCase()) ||
     h.name.toLowerCase().includes(q)
@@ -768,241 +769,6 @@ router.post('/:id/doctors', requireClinicalStaff, (req: Request, res: Response) 
   }
 });
 
-// POST /api/v1/hospitals/conditions/:conditionId/cure - Mark ongoing disease as cured/resolved
-router.post('/conditions/:conditionId/cure', (req: Request, res: Response) => {
-  const { conditionId } = req.params;
-  const {
-    resolvedDate = new Date().toISOString().split('T')[0],
-    curedByHospital = 'Apollo Hospitals & Heart Institute',
-    doctorName = 'Attending Physician',
-    resolvingEvidence = 'Clinical examination and confirmatory follow-up investigation confirm complete clinical cure.'
-  } = req.body;
-
-  const condition = db.conditions.find(c => c.id === conditionId);
-  if (!condition) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'CONDITION_NOT_FOUND', message: 'Condition not found in central registry.' }
-    });
-  }
-
-  condition.currentStatus = 'RESOLVED';
-  condition.resolvedDate = resolvedDate;
-  condition.notes = `${condition.notes || ''} [Clinically verified CURED on ${resolvedDate} by ${doctorName} at ${curedByHospital}. Proof: ${resolvingEvidence}]`.trim();
-
-  // Create health timeline event
-  const newEventId = `evt-cure-${Date.now()}`;
-  db.healthEvents.unshift({
-    id: newEventId,
-    patientId: condition.patientId,
-    eventType: 'DIAGNOSIS',
-    eventDate: resolvedDate,
-    title: `CLINICAL CURE CONFIRMED: ${condition.conditionName}`,
-    summary: `Condition '${condition.conditionName}' certified resolved and cured at ${curedByHospital} by ${doctorName}. Evidence: ${resolvingEvidence}`,
-    hospitalFacility: curedByHospital,
-    attendingDoctor: doctorName,
-    bodySystem: condition.bodySystem,
-    severity: 'NORMAL'
-  });
-
-  return res.json({
-    success: true,
-    data: {
-      condition,
-      message: `Disease '${condition.conditionName}' has been successfully certified as CURED on ${resolvedDate} by ${doctorName} at ${curedByHospital}.`
-    }
-  });
-});
-
-// POST /api/v1/hospitals/conditions/:conditionId/reopen - Mark condition as ongoing/relapsed
-router.post('/conditions/:conditionId/reopen', (req: Request, res: Response) => {
-  const { conditionId } = req.params;
-  const { reason = 'Condition relapsed; re-initiating active treatment protocol.', doctorName = 'Attending Physician' } = req.body;
-
-  const condition = db.conditions.find(c => c.id === conditionId);
-  if (!condition) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'CONDITION_NOT_FOUND', message: 'Condition not found in central registry.' }
-    });
-  }
-
-  condition.currentStatus = 'UNDER_TREATMENT';
-  condition.resolvedDate = undefined;
-  condition.notes = `${condition.notes || ''} [Re-opened to UNDER_TREATMENT on ${new Date().toISOString().split('T')[0]} by ${doctorName}. Reason: ${reason}]`.trim();
-
-  return res.json({
-    success: true,
-    data: {
-      condition,
-      message: `Condition '${condition.conditionName}' re-opened for active ongoing treatment.`
-    }
-  });
-});
-
-// POST /api/v1/hospitals/reports/ingest - Ingest a new diagnostic lab or imaging report
-// "and any report of him is being genrated all the things are being inserted in the platform"
-router.post('/reports/ingest', (req: Request, res: Response) => {
-  const {
-    patientId,
-    hospitalId = 'hosp-drlal-05',
-    hospitalName = 'Dr. Lal PathLabs National Reference Laboratory',
-    documentType,
-    category = 'Metabolic',
-    reportDate,
-    originalFilename,
-    keyFindingsSummary,
-    linkedConditionId,
-    markConditionResolved = false,
-    extractedLabs = []
-  } = req.body;
-
-  if (!patientId || !documentType || !keyFindingsSummary) {
-    return res.status(400).json({
-      success: false,
-      error: { code: 'INVALID_INPUT', message: 'patientId, documentType, and keyFindingsSummary are required.' }
-    });
-  }
-
-  const patient = db.patients.find(p => p.id === patientId);
-  if (!patient) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'PATIENT_NOT_FOUND', message: `Patient '${patientId}' was not found in the central registry.` }
-    });
-  }
-
-  const result = db.addHospitalDiagnosticReport({
-    patientId,
-    hospitalId,
-    hospitalName,
-    documentType,
-    category: category as any,
-    reportDate,
-    originalFilename,
-    keyFindingsSummary,
-    linkedConditionId,
-    markConditionResolved,
-    extractedLabs
-  });
-
-  return res.status(201).json({
-    success: true,
-    data: {
-      ...result,
-      message: `Diagnostic report '${documentType}' successfully ingested from ${hospitalName} into the centralized Human Report Center.`
-    }
-  });
-});
-
-// POST /api/v1/hospitals/patients/register - Hospital Reception / OPD citizen enrollment
-router.post('/patients/register', (req: Request, res: Response) => {
-  const {
-    fullName,
-    dob,
-    gender,
-    bloodGroup,
-    allergies = [],
-    emergencyContact,
-    baselineHistory,
-    registeringHospital = 'Apollo Hospitals & Heart Institute'
-  } = req.body;
-
-  if (!fullName || !dob || !gender || !bloodGroup) {
-    return res.status(400).json({
-      success: false,
-      error: { code: 'INVALID_INPUT', message: 'fullName, dob, gender, and bloodGroup are required to enroll a citizen.' }
-    });
-  }
-
-  const newPatient = db.registerCitizen({
-    fullName,
-    dob,
-    gender,
-    bloodGroup,
-    allergies,
-    emergencyContact,
-    baselineHistory,
-    registeringHospital
-  });
-
-  return res.status(201).json({
-    success: true,
-    data: {
-      patient: newPatient,
-      message: `Citizen ${fullName} successfully registered in Central Human Report Center with Health ID ${newPatient.healthId}.`
-    }
-  });
-});
-
-// GET /api/v1/hospitals/:id/doctors - Get all doctors created/employed by this hospital
-router.get('/:id/doctors', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const q = (id || '').toLowerCase().trim();
-  const hospital = db.hospitals.find(h => 
-    h.id.toLowerCase() === q || 
-    h.facilityCode.toLowerCase() === q || 
-    h.shortName.toLowerCase().includes(q) ||
-    q.includes(h.shortName.toLowerCase()) ||
-    h.name.toLowerCase().includes(q)
-  );
-
-  if (!hospital) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'HOSPITAL_NOT_FOUND', message: `Hospital facility '${id}' is not registered.` }
-    });
-  }
-
-  return res.json({
-    success: true,
-    data: {
-      hospitalId: hospital.id,
-      hospitalName: hospital.name,
-      facilityCode: hospital.facilityCode,
-      totalDoctors: hospital.activeDoctors.length,
-      doctors: hospital.activeDoctors
-    }
-  });
-});
-
-// POST /api/v1/hospitals/:id/doctors - Hospital admin creates a new Doctor ID
-router.post('/:id/doctors', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { name, qualification, specialization, department, licenseNumber, password } = req.body;
-
-  if (!name || !licenseNumber) {
-    return res.status(400).json({
-      success: false,
-      error: { code: 'INVALID_INPUT', message: 'Doctor Name and Medical Registration/License Number are required.' }
-    });
-  }
-
-  try {
-    const result = db.createHospitalDoctor(id, {
-      name,
-      qualification: qualification || 'MBBS, MD',
-      specialization: specialization || 'General Medicine',
-      department: department || 'Outpatient Department',
-      licenseNumber,
-      password: password || 'doctor123'
-    });
-
-    return res.status(201).json({
-      success: true,
-      data: {
-        ...result,
-        message: `Doctor ID successfully issued for ${name} under ${result.hospitalName}. Specialist can now access patient reports.`
-      }
-    });
-  } catch (err: any) {
-    return res.status(400).json({
-      success: false,
-      error: { code: 'CREATION_FAILED', message: err.message || 'Failed to provision doctor ID.' }
-    });
-  }
-});
-
 // POST /api/v1/hospitals/login - Dedicated Hospital Institutional Login
 router.post('/login', (req: Request, res: Response) => {
   const { facilityCode, hospitalId, password } = req.body;
@@ -1015,7 +781,7 @@ router.post('/login', (req: Request, res: Response) => {
     });
   }
 
-  const hospital = db.hospitals.find(h => 
+  const hospital = db.hospitals.find(h =>
     h.id.toLowerCase() === query ||
     h.facilityCode.toLowerCase() === query ||
     h.shortName.toLowerCase() === query ||
@@ -1025,9 +791,9 @@ router.post('/login', (req: Request, res: Response) => {
   if (!hospital) {
     return res.status(404).json({
       success: false,
-      error: { 
-        code: 'HOSPITAL_NOT_FOUND', 
-        message: `Hospital facility '${query}' is not registered in the network. Please enter a valid facility code (e.g. HIP-IN-DEL-001).` 
+      error: {
+        code: 'HOSPITAL_NOT_FOUND',
+        message: `Hospital facility '${query}' is not registered in the network. Please enter a valid facility code (e.g. HIP-IN-DEL-001).`
       }
     });
   }
@@ -1094,8 +860,8 @@ router.post('/doctor/login', (req: Request, res: Response) => {
     });
   }
 
-  const hospital = db.hospitals.find(h => 
-    h.id.toLowerCase() === query || 
+  const hospital = db.hospitals.find(h =>
+    h.id.toLowerCase() === query ||
     h.facilityCode.toLowerCase() === query ||
     h.shortName.toLowerCase() === query ||
     h.name.toLowerCase() === query
@@ -1115,7 +881,7 @@ router.post('/doctor/login', (req: Request, res: Response) => {
     });
   }
 
-  const doctor = hospital.activeDoctors.find(d => 
+  const doctor = hospital.activeDoctors.find(d =>
     (lic && d.licenseNumber.toLowerCase() === lic) ||
     (docName && d.name.toLowerCase().includes(docName))
   );
@@ -1123,9 +889,9 @@ router.post('/doctor/login', (req: Request, res: Response) => {
   if (!doctor) {
     return res.status(401).json({
       success: false,
-      error: { 
-        code: 'DOCTOR_NOT_FOUND', 
-        message: `Doctor license '${licenseNumber || doctorName}' is not affiliated with ${hospital.name}. Access denied.` 
+      error: {
+        code: 'DOCTOR_NOT_FOUND',
+        message: `Doctor license '${licenseNumber || doctorName}' is not affiliated with ${hospital.name}. Access denied.`
       }
     });
   }
@@ -1175,94 +941,4 @@ router.post('/doctor/login', (req: Request, res: Response) => {
   });
 });
 
-// POST /api/v1/hospitals/conditions/:conditionId/cure - Officially Certify Disease as CURED
-router.post('/conditions/:conditionId/cure', (req: Request, res: Response) => {
-  const { conditionId } = req.params;
-  const { resolvedDate, curedByHospital, doctorName, resolvingEvidence } = req.body;
-
-  const condition = db.conditions.find(c => c.id === conditionId);
-  if (!condition) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'NOT_FOUND', message: `Condition '${conditionId}' not found in registry.` }
-    });
-  }
-
-  const effectiveDate = resolvedDate || new Date().toISOString().split('T')[0];
-  const certifyingHospital = curedByHospital || 'Apollo Hospitals & Heart Institute';
-  const certifyingDoc = doctorName || 'Attending Physician';
-  const evidenceText = resolvingEvidence || 'Clinical examination and confirmatory diagnostic tests verify complete disease cure.';
-
-  condition.currentStatus = 'RESOLVED';
-  condition.resolvedDate = effectiveDate;
-  (condition as any).curedByHospital = certifyingHospital;
-  (condition as any).certifyingDoctor = certifyingDoc;
-  (condition as any).resolvingEvidence = evidenceText;
-  (condition as any).resolvingReportDetails = evidenceText;
-
-  // Prepend permanent audit health event
-  db.healthEvents.unshift({
-    id: `evt-cure-${Date.now()}`,
-    patientId: condition.patientId,
-    conditionId: condition.id,
-    eventType: 'DIAGNOSIS',
-    eventDate: effectiveDate,
-    title: `Clinical Cure Confirmed: ${condition.conditionName}`,
-    summary: `Condition officially certified as permanently CURED by ${certifyingDoc} at ${certifyingHospital}. Clinical Evidence: ${evidenceText}`,
-    bodySystem: condition.bodySystem,
-    severity: 'NORMAL',
-    hospitalFacility: certifyingHospital,
-    attendingDoctor: certifyingDoc
-  });
-
-  return res.json({
-    success: true,
-    data: {
-      condition,
-      message: `Disease '${condition.conditionName}' has been officially verified and certified as CURED by ${certifyingHospital}.`
-    }
-  });
-});
-
-// POST /api/v1/hospitals/conditions/:conditionId/reopen - Re-open Condition for Ongoing Care
-router.post('/conditions/:conditionId/reopen', (req: Request, res: Response) => {
-  const { conditionId } = req.params;
-  const { reason, doctorName, hospitalName } = req.body;
-
-  const condition = db.conditions.find(c => c.id === conditionId);
-  if (!condition) {
-    return res.status(404).json({
-      success: false,
-      error: { code: 'NOT_FOUND', message: `Condition '${conditionId}' not found in registry.` }
-    });
-  }
-
-  condition.currentStatus = 'UNDER_TREATMENT';
-  condition.treatmentSummary = reason ? `Active treatment resumed: ${reason}` : 'Active treatment protocol re-opened.';
-  delete condition.resolvedDate;
-
-  db.healthEvents.unshift({
-    id: `evt-reopen-${Date.now()}`,
-    patientId: condition.patientId,
-    conditionId: condition.id,
-    eventType: 'DIAGNOSIS',
-    eventDate: new Date().toISOString().split('T')[0],
-    title: `Active Treatment Resumed: ${condition.conditionName}`,
-    summary: `Condition re-opened for ongoing clinical management by ${doctorName || 'Attending Physician'} at ${hospitalName || 'Network Hospital'}. Reason: ${reason || 'Clinical relapse / re-evaluation required.'}`,
-    bodySystem: condition.bodySystem,
-    severity: 'NORMAL',
-    hospitalFacility: hospitalName || 'Network Hospital',
-    attendingDoctor: doctorName || 'Attending Physician'
-  });
-
-  return res.json({
-    success: true,
-    data: {
-      condition,
-      message: `Disease '${condition.conditionName}' has been re-opened for active ongoing treatment.`
-    }
-  });
-});
-
 export default router;
-

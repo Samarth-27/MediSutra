@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../../database/store';
-import { optionalAuth } from '../../middleware/auth';
+import { authenticateToken, requirePatientOrClinicalStaff } from '../../middleware/auth';
 
 const router = Router();
 
@@ -107,20 +107,8 @@ const consentArtifactsStore: ABDMConsentArtifact[] = [
 ];
 
 // GET /api/v1/abdm/care-contexts/:patientId
-router.get('/care-contexts/:patientId', optionalAuth, (req: Request, res: Response) => {
+router.get('/care-contexts/:patientId', requirePatientOrClinicalStaff('patientId'), (req: Request, res: Response) => {
   const { patientId } = req.params;
-
-  // Cross-tenant protection: Citizens can only inspect their own ABDM contexts
-  const user = req.user;
-  const clientRole = req.headers['x-role'] as string;
-  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
-  if (!isClinical && user?.role === 'PATIENT' && user.patientId && user.patientId !== patientId) {
-    return res.status(403).json({
-      success: false,
-      error: { code: 'FORBIDDEN_ABDM_ACCESS', message: 'Access Denied: You cannot view ABDM care context of another citizen.' }
-    });
-  }
-
   const contexts = careContextsStore.filter(c => c.patientId === patientId);
 
   return res.json({
@@ -135,20 +123,8 @@ router.get('/care-contexts/:patientId', optionalAuth, (req: Request, res: Respon
 });
 
 // GET /api/v1/abdm/consents/:patientId
-router.get('/consents/:patientId', optionalAuth, (req: Request, res: Response) => {
+router.get('/consents/:patientId', requirePatientOrClinicalStaff('patientId'), (req: Request, res: Response) => {
   const { patientId } = req.params;
-
-  // Cross-tenant protection: Citizens can only inspect their own ABDM consents
-  const user = req.user;
-  const clientRole = req.headers['x-role'] as string;
-  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
-  if (!isClinical && user?.role === 'PATIENT' && user.patientId && user.patientId !== patientId) {
-    return res.status(403).json({
-      success: false,
-      error: { code: 'FORBIDDEN_ABDM_ACCESS', message: 'Access Denied: You cannot view ABDM consents of another citizen.' }
-    });
-  }
-
   const consents = consentArtifactsStore.filter(c => c.patientId === patientId);
 
   return res.json({
@@ -163,7 +139,7 @@ router.get('/consents/:patientId', optionalAuth, (req: Request, res: Response) =
 });
 
 // POST /api/v1/abdm/consents/:consentId/revoke
-router.post('/consents/:consentId/revoke', (req: Request, res: Response) => {
+router.post('/consents/:consentId/revoke', authenticateToken, (req: Request, res: Response) => {
   const { consentId } = req.params;
   const artifact = consentArtifactsStore.find(c => c.id === consentId);
 
@@ -189,7 +165,7 @@ router.post('/consents/:consentId/revoke', (req: Request, res: Response) => {
 
 // GET /api/v1/abdm/meds-stream/:patientId
 // Medical Event Data Standard (MEDS) format (Stanford/MIT community EHR standard)
-router.get('/meds-stream/:patientId', (req: Request, res: Response) => {
+router.get('/meds-stream/:patientId', requirePatientOrClinicalStaff('patientId'), (req: Request, res: Response) => {
   const { patientId } = req.params;
   const patient = db.patients.find(p => p.id === patientId);
 
