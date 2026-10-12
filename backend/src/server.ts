@@ -1,8 +1,15 @@
 import express from 'express';
-import cors from 'cors';
 import path from 'path';
 import fs from 'fs';
 import { CONFIG } from './config';
+import {
+  securityHeaders,
+  corsPolicy,
+  apiRateLimiter,
+  authRateLimiter,
+  aiRateLimiter,
+  sanitizeRequest
+} from './middleware/security';
 
 import authRouter from './modules/auth/authRouter';
 import patientRouter from './modules/patients/patientRouter';
@@ -18,21 +25,35 @@ import hospitalRouter from './modules/hospital/hospitalRouter';
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 1. Trust proxy for reverse proxies (Render, Cloudflare, AWS ALB)
+app.set('trust proxy', 1);
 
-// Request logger
+// 2. HTTP Security Headers (Helmet, CSP, HSTS, NoSniff, Frameguard)
+app.use(securityHeaders);
+
+// 3. Strict CORS Origin Whitelist
+app.use(corsPolicy);
+
+// 4. Request Body Parsers with Strict Size Limits (DoS / Payload protection)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// 5. Anti-XSS & Prototype Pollution Input Sanitization
+app.use(sanitizeRequest);
+
+// 6. Request Logger (Sanitized)
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} (${duration}ms)`);
+    if (!CONFIG.IS_PRODUCTION || res.statusCode >= 400) {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} (${duration}ms)`);
+    }
   });
   next();
 });
 
-// Dedicated Cloud & Render Health Check Endpoints
+// 7. Dedicated Cloud & Render Health Check Endpoints (Exempt from rate limiting)
 const healthPayload = {
   status: 'online',
   platform: 'MediSutra Longitudinal Personal Health Intelligence Platform',
@@ -43,7 +64,20 @@ app.get('/health', (req, res) => res.json({ ...healthPayload, timestamp: new Dat
 app.get('/api/health', (req, res) => res.json({ ...healthPayload, timestamp: new Date().toISOString() }));
 app.get('/api/v1/health', (req, res) => res.json({ ...healthPayload, timestamp: new Date().toISOString() }));
 
-// API v1 Routes
+// 8. General API Rate Limiting
+app.use('/api/', apiRateLimiter);
+
+// 9. Strict Rate Limiting on Authentication Endpoints (Brute-Force & Credential Stuffing Defense)
+app.use('/api/v1/auth/login', authRateLimiter);
+app.use('/api/v1/auth/register', authRateLimiter);
+app.use('/api/v1/auth/citizen/login', authRateLimiter);
+app.use('/api/v1/hospitals/login', authRateLimiter);
+app.use('/api/v1/hospitals/doctor/login', authRateLimiter);
+
+// 10. Dedicated Rate Limiting on Clinical AI Inference
+app.use('/api/v1/ai', aiRateLimiter);
+
+// 11. API v1 Routes
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/patients', patientRouter);
 app.use('/api/v1/documents', documentRouter);
@@ -56,7 +90,7 @@ app.use('/api/v1/doctor', doctorRouter);
 app.use('/api/v1/abdm', abdmRouter);
 app.use('/api/v1/hospitals', hospitalRouter);
 
-// Locate frontend production build if present (for single-service Render deployments)
+// 12. Locate frontend production build if present (for single-service Render deployments)
 const possibleFrontendPaths = [
   path.resolve(__dirname, '../../frontend/dist'),
   path.resolve(__dirname, '../frontend/dist'),
@@ -66,7 +100,6 @@ const possibleFrontendPaths = [
 const frontendDistPath = possibleFrontendPaths.find(p => fs.existsSync(p));
 
 if (frontendDistPath) {
-  console.log(`[MediSutra] Serving static production frontend from: ${frontendDistPath}`);
   app.use(express.static(frontendDistPath));
   app.get('*', (req, res, next) => {
     if (req.originalUrl.startsWith('/api/') || req.originalUrl === '/api') {
@@ -75,7 +108,6 @@ if (frontendDistPath) {
     res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
 } else {
-  // Root fallback if frontend not built alongside backend
   app.get('/', (req, res) => {
     res.json({
       ...healthPayload,
@@ -84,7 +116,7 @@ if (frontendDistPath) {
   });
 }
 
-// Global 404 for unhandled API routes
+// 13. Global 404 for unhandled API routes
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -92,23 +124,39 @@ app.use((req, res) => {
   });
 });
 
-// Central Error Handler
+// 14. Central Production Error Handler (Zero Debug Leaks)
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('[Server Error]:', err);
-  res.status(500).json({
+  console.error('[Server Security/Error Event]:', err?.message || err);
+
+  const statusCode = err?.status || err?.statusCode || 500;
+  const safeMessage = CONFIG.IS_PRODUCTION && statusCode >= 500
+    ? 'An internal server error occurred. Please contact system administration.'
+    : (err?.message || 'An unexpected error occurred.');
+
+  res.status(statusCode).json({
     success: false,
     error: {
-      code: 'INTERNAL_SERVER_ERROR',
-      message: err.message || 'An unexpected error occurred.'
+      code: err?.code || 'INTERNAL_SERVER_ERROR',
+      message: safeMessage
     }
   });
+});
+
+// 15. Process-level safety against unhandled failures
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[Unhandled Rejection at]:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('[Uncaught Exception]:', error);
 });
 
 app.listen(CONFIG.PORT, '0.0.0.0', () => {
   console.log(`=======================================================`);
   console.log(` MediSutra Core API Gateway running on port ${CONFIG.PORT}`);
   console.log(` Base URL: http://localhost:${CONFIG.PORT}/api/v1`);
-  console.log(` Environment: ${CONFIG.ENV}`);
+  console.log(` Environment: ${CONFIG.ENV} (Production Mode: ${CONFIG.IS_PRODUCTION})`);
+  console.log(` Security: Helmet CSP ON, Rate Limiting ON, CORS ON`);
   console.log(`=======================================================`);
 });
 

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../../database/store';
 import { CONFIG } from '../../config';
+import { requireClinicalStaff } from '../../middleware/auth';
 
 const router = Router();
 
@@ -465,7 +466,7 @@ router.post('/onboard-patient-to-doctor', (req: Request, res: Response) => {
 });
 
 // POST /api/v1/hospitals/encounters/diagnosis & /encounters/record - Record clinical encounter
-router.post(['/encounters/diagnosis', '/encounters/record'], (req: Request, res: Response) => {
+router.post(['/encounters/diagnosis', '/encounters/record'], requireClinicalStaff, (req: Request, res: Response) => {
   const {
     patientId,
     hospitalId = 'hosp-apollo-01',
@@ -533,7 +534,7 @@ router.post(['/encounters/diagnosis', '/encounters/record'], (req: Request, res:
 });
 
 // POST /api/v1/hospitals/conditions/:conditionId/cure - Mark ongoing disease as cured/resolved
-router.post('/conditions/:conditionId/cure', (req: Request, res: Response) => {
+router.post('/conditions/:conditionId/cure', requireClinicalStaff, (req: Request, res: Response) => {
   const { conditionId } = req.params;
   const {
     resolvedDate = new Date().toISOString().split('T')[0],
@@ -579,7 +580,7 @@ router.post('/conditions/:conditionId/cure', (req: Request, res: Response) => {
 });
 
 // POST /api/v1/hospitals/conditions/:conditionId/reopen - Mark condition as ongoing/relapsed
-router.post('/conditions/:conditionId/reopen', (req: Request, res: Response) => {
+router.post('/conditions/:conditionId/reopen', requireClinicalStaff, (req: Request, res: Response) => {
   const { conditionId } = req.params;
   const { reason = 'Condition relapsed; re-initiating active treatment protocol.', doctorName = 'Attending Physician' } = req.body;
 
@@ -606,7 +607,7 @@ router.post('/conditions/:conditionId/reopen', (req: Request, res: Response) => 
 
 // POST /api/v1/hospitals/reports/ingest - Ingest a new diagnostic lab or imaging report
 // "and any report of him is being genrated all the things are being inserted in the platform"
-router.post('/reports/ingest', (req: Request, res: Response) => {
+router.post('/reports/ingest', requireClinicalStaff, (req: Request, res: Response) => {
   const {
     patientId,
     hospitalId = 'hosp-drlal-05',
@@ -731,7 +732,7 @@ router.get('/:id/doctors', (req: Request, res: Response) => {
 });
 
 // POST /api/v1/hospitals/:id/doctors - Hospital admin creates a new Doctor ID
-router.post('/:id/doctors', (req: Request, res: Response) => {
+router.post('/:id/doctors', requireClinicalStaff, (req: Request, res: Response) => {
   const { id } = req.params;
   const { name, qualification, specialization, department, licenseNumber, password } = req.body;
 
@@ -1031,8 +1032,15 @@ router.post('/login', (req: Request, res: Response) => {
     });
   }
 
-  // Validate hospital password
-  const validPwd = !password || password === 'admin' || password === 'hospitalAdmin2026!' || password === 'demo1234';
+  // Require and validate hospital administration password
+  if (!password) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'PASSWORD_REQUIRED', message: 'Password is required to authenticate hospital administration.' }
+    });
+  }
+
+  const validPwd = password === 'hospitalAdmin2026!' || (!CONFIG.IS_PRODUCTION && (password === 'admin' || password === 'demo1234'));
   if (!validPwd) {
     return res.status(401).json({
       success: false,
@@ -1122,7 +1130,15 @@ router.post('/doctor/login', (req: Request, res: Response) => {
     });
   }
 
-  const validPwd = !password || password === 'doctorSecure2026!' || password === 'demo1234';
+  // Require and validate doctor authentication passcode
+  if (!password) {
+    return res.status(400).json({
+      success: false,
+      error: { code: 'PASSWORD_REQUIRED', message: 'Passcode is required to authenticate doctor.' }
+    });
+  }
+
+  const validPwd = password === 'doctorSecure2026!' || (!CONFIG.IS_PRODUCTION && (password === 'demo1234' || password === 'doctor123'));
   if (!validPwd) {
     return res.status(401).json({
       success: false,

@@ -43,6 +43,17 @@ router.get('/:id/journey', authenticateToken, (req: Request, res: Response) => {
     });
   }
 
+  // Cross-tenant IDOR check: Patients can only view their own condition journey
+  const user = req.user;
+  const clientRole = req.headers['x-role'] as string;
+  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+  if (!isClinical && user?.role === 'PATIENT' && condition.patientId !== user.patientId) {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'FORBIDDEN_CONDITION_ACCESS', message: 'Access Denied: You cannot view medical condition journey of another citizen.' }
+    });
+  }
+
   const stages = db.conditionStages
     .filter(s => s.conditionId === condition.id)
     .sort((a, b) => new Date(a.stageDate).getTime() - new Date(b.stageDate).getTime());

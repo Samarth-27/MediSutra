@@ -8,12 +8,21 @@ dist/
 build/
 out/
 
-# Environment variables
+# Environment variables & secrets
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+secrets.json
+storage/vault/*
+!storage/vault/.gitkeep
 
 # Logs
 npm-debug.log*

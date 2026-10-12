@@ -6,7 +6,27 @@ import { db, DocumentRecord, HealthEvent, LabResult } from '../../database/store
 import { authenticateToken } from '../../middleware/auth';
 
 const router = Router();
-const upload = multer({ limits: { fileSize: 25 * 1024 * 1024 } }); // 25MB limit
+const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'text/plain',
+  'application/json',
+  'application/dicom',
+  'application/xml'
+];
+
+const upload = multer({
+  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB limit
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Security Alert: File type '${file.mimetype}' is not permitted for medical records.`));
+    }
+  }
+});
 
 // GET /api/v1/documents
 router.get('/', authenticateToken, (req: Request, res: Response) => {
@@ -31,6 +51,17 @@ router.get('/:id', authenticateToken, (req: Request, res: Response) => {
     return res.status(404).json({
       success: false,
       error: { code: 'NOT_FOUND', message: 'Document not found.' }
+    });
+  }
+
+  // Cross-tenant IDOR defense: Patients can only inspect their own records
+  const user = req.user;
+  const clientRole = req.headers['x-role'] as string;
+  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+  if (!isClinical && user?.role === 'PATIENT' && doc.patientId !== user.patientId) {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'FORBIDDEN_DOCUMENT_ACCESS', message: 'Access Denied: You cannot view medical records belonging to another citizen.' }
     });
   }
 

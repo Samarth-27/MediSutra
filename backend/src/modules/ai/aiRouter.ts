@@ -350,6 +350,17 @@ router.post('/doctor-analysis', optionalAuth, (req: Request, res: Response) => {
     });
   }
 
+  // Cross-tenant protection: Citizens can only analyze their own record
+  const user = req.user;
+  const clientRole = req.headers['x-role'] as string;
+  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || user?.role === 'HOSPITAL_ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+  if (!isClinical && user?.role === 'PATIENT' && user.patientId && user.patientId !== targetPatient.id) {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'FORBIDDEN_AI_ACCESS', message: 'Access Denied: You cannot run clinical AI analysis on another citizen\'s records.' }
+    });
+  }
+
   const analysis = generateDoctorClinicalAnalysis(targetPatient, queryText);
 
   return res.json({
@@ -392,6 +403,18 @@ router.post('/query', optionalAuth, (req: Request, res: Response) => {
   }
 
   const patient = db.patients.find(p => p.id === targetPatientId || p.healthId === targetPatientId) || db.patients[0];
+  
+  // Cross-tenant protection: Citizens can only query their own records
+  const user = req.user;
+  const clientRole = req.headers['x-role'] as string;
+  const isClinical = user?.role === 'DOCTOR' || user?.role === 'ADMIN' || user?.role === 'HOSPITAL_ADMIN' || clientRole === 'DOCTOR' || clientRole === 'HOSPITAL_ADMIN';
+  if (!isClinical && user?.role === 'PATIENT' && user.patientId && user.patientId !== patient.id) {
+    return res.status(403).json({
+      success: false,
+      error: { code: 'FORBIDDEN_AI_ACCESS', message: 'Access Denied: You cannot query AI intelligence against another citizen\'s private records.' }
+    });
+  }
+
   const qLower = query.toLowerCase();
 
   // Check if this query originates from or targets a doctor clinical evaluation

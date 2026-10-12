@@ -126,7 +126,7 @@ router.post('/login', (req: Request, res: Response) => {
     });
   }
 
-  const isPasswordValid = bcrypt.compareSync(password, user.passwordHash) || password === 'demo1234';
+  const isPasswordValid = bcrypt.compareSync(password, user.passwordHash) || (!CONFIG.IS_PRODUCTION && password === 'demo1234');
   if (!isPasswordValid) {
     return res.status(401).json({
       success: false,

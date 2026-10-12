@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import { CONFIG } from '../../config';
 import { db, DoctorClinicalNote } from '../../database/store';
+import { requireClinicalStaff } from '../../middleware/auth';
 
 const router = Router();
 
@@ -142,7 +143,7 @@ router.get('/patients/:id/dossier', (req: Request, res: Response) => {
 });
 
 // PUT /api/v1/doctor/patients/:id/conditions/:condId/status - Update Condition Status
-router.put('/patients/:id/conditions/:condId/status', (req: Request, res: Response) => {
+router.put('/patients/:id/conditions/:condId/status', requireClinicalStaff, (req: Request, res: Response) => {
   const { id, condId } = req.params;
   const { newStatus, clinicalNote, doctorName = 'Dr. Alok Sen, MD' } = req.body;
 
@@ -183,7 +184,7 @@ router.put('/patients/:id/conditions/:condId/status', (req: Request, res: Respon
 });
 
 // POST /api/v1/doctor/patients/:id/notes - Add Clinical Consultation Note
-router.post('/patients/:id/notes', (req: Request, res: Response) => {
+router.post('/patients/:id/notes', requireClinicalStaff, (req: Request, res: Response) => {
   const { id } = req.params;
   const { content, assessmentType = 'ROUTINE_REVIEW', doctorName = 'Dr. Alok Sen, MD', doctorSpecialization = 'Internal Medicine' } = req.body;
 
