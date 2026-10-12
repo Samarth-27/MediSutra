@@ -36,7 +36,7 @@ export default function App() {
   const [, setDocuments] = useState<any[]>([]);
 
   // Doctor Portal States
-  const [, setDoctorPatients] = useState<any[]>([]);
+  const [doctorPatients, setDoctorPatients] = useState<any[]>([]);
   const [selectedDoctorPatientId, setSelectedDoctorPatientId] = useState<string>('pat-demo-001');
   const [doctorDossier, setDoctorDossier] = useState<any>(null);
   const [selectedYearFilter, setSelectedYearFilter] = useState<string>('ALL');
@@ -189,7 +189,12 @@ export default function App() {
           setDoctorPatients(docPatsRes.data);
           setHospitalRegistry(regRes.data.patients);
 
-          const initialDoctorPatientId = selectedDoctorPatientId || 'pat-demo-001';
+          const firstAssignedId = docPatsRes.data?.[0]?.id;
+          const initialDoctorPatientId = (selectedDoctorPatientId && docPatsRes.data?.some((p: any) => p.id === selectedDoctorPatientId))
+            ? selectedDoctorPatientId
+            : (firstAssignedId || 'pat-demo-001');
+          setSelectedDoctorPatientId(initialDoctorPatientId);
+
           try {
             const dossierRes = await api.getPatientDossier(initialDoctorPatientId);
             setDoctorDossier(dossierRes.data);
@@ -685,14 +690,23 @@ export default function App() {
 
       // Refresh roster and dossier for selected patient
       try {
-        const [regRes, docPatsRes, dossierRes] = await Promise.all([
+        const [regRes, docPatsRes] = await Promise.all([
           api.getHospitalPatientRegistry(),
-          api.getDoctorPatients(),
-          api.getPatientDossier(selectedDoctorPatientId || 'pat-demo-001')
+          api.getDoctorPatients()
         ]);
         setHospitalRegistry(regRes.data.patients);
         setDoctorPatients(docPatsRes.data);
-        setDoctorDossier(dossierRes.data);
+
+        const firstAssignedPatientId = docPatsRes.data?.[0]?.id;
+        const targetPatientId = (selectedDoctorPatientId && docPatsRes.data?.some((p: any) => p.id === selectedDoctorPatientId))
+          ? selectedDoctorPatientId
+          : (firstAssignedPatientId || 'pat-demo-001');
+
+        setSelectedDoctorPatientId(targetPatientId);
+        if (targetPatientId) {
+          const dossierRes = await api.getPatientDossier(targetPatientId);
+          setDoctorDossier(dossierRes.data);
+        }
       } catch (loadErr) {
         console.error('Failed refreshing doctor station data on login:', loadErr);
       }
@@ -849,6 +863,7 @@ export default function App() {
           {authSession.role === 'DOCTOR' && (
             <DoctorStation
               authSession={authSession}
+              doctorPatients={doctorPatients}
               hospitalRegistry={hospitalRegistry}
               selectedDoctorPatientId={selectedDoctorPatientId}
               handleSelectDoctorPatient={handleSelectDoctorPatient}

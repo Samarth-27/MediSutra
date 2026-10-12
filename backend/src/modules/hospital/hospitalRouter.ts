@@ -415,6 +415,16 @@ router.post('/onboard-patient-to-doctor', requireClinicalStaff, (req: Request, r
   });
 
   // Track as active assigned patient for the doctor
+  const docObj = hospital.activeDoctors.find(d => d.name.toLowerCase() === doctorName.toLowerCase() || doctorName.toLowerCase().includes(d.name.toLowerCase()));
+  const assignedDocId = docObj ? docObj.id : ((req as any).user?.doctorId || `doc-${hospital.shortName.toLowerCase()}-custom`);
+
+  patient.assignedDoctorId = assignedDocId;
+  patient.assignedDoctorName = doctorName;
+  patient.assignedHospitalId = hospital.id;
+  if (!patient.assignedDoctorIds) patient.assignedDoctorIds = [];
+  if (assignedDocId && !patient.assignedDoctorIds.includes(assignedDocId)) {
+    patient.assignedDoctorIds.push(assignedDocId);
+  }
   (patient as any).assignedDoctor = doctorName;
   (patient as any).assignedHospital = hospital.name;
   (patient as any).lastEncounterDate = eventDate;
@@ -426,6 +436,7 @@ router.post('/onboard-patient-to-doctor', requireClinicalStaff, (req: Request, r
     data: {
       patient,
       assignedDoctor: doctorName,
+      assignedDoctorId: assignedDocId,
       assignedHospital: hospital.name,
       department,
       chiefComplaint,
@@ -916,6 +927,7 @@ router.post('/doctor/login', (req: Request, res: Response) => {
     {
       userId: `doc-${doctor.id}`,
       doctorId: doctor.id,
+      doctorName: doctor.name,
       hospitalId: hospital.id,
       email: `${doctor.name.toLowerCase().replace(/\s+/g, '.')}@medisutra.in`,
       role: 'DOCTOR'

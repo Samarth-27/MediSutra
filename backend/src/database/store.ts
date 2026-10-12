@@ -26,6 +26,10 @@ export interface Patient {
   riskLevel?: 'LOW' | 'MODERATE' | 'HIGH';
   lastEncounterDate?: string;
   createdAt: string;
+  assignedDoctorId?: string;
+  assignedDoctorName?: string;
+  assignedHospitalId?: string;
+  assignedDoctorIds?: string[];
 }
 
 export interface HospitalFacility {
@@ -372,7 +376,11 @@ class DataStore {
       },
       riskLevel: 'MODERATE',
       lastEncounterDate: '2026-07-15',
-      createdAt: '2023-01-01T00:00:00Z'
+      createdAt: '2023-01-01T00:00:00Z',
+      assignedDoctorId: 'doc-apollo-101',
+      assignedDoctorName: 'Dr. Priya Nair',
+      assignedHospitalId: 'hosp-apollo-01',
+      assignedDoctorIds: ['doc-apollo-101']
     };
     this.patients.push(demoPatient);
 
@@ -406,7 +414,11 @@ class DataStore {
       },
       riskLevel: 'LOW',
       lastEncounterDate: '2026-08-01',
-      createdAt: '2023-06-01T00:00:00Z'
+      createdAt: '2023-06-01T00:00:00Z',
+      assignedDoctorId: 'doc-apollo-101',
+      assignedDoctorName: 'Dr. Priya Nair',
+      assignedHospitalId: 'hosp-apollo-01',
+      assignedDoctorIds: ['doc-apollo-101']
     };
     this.patients.push(priyaPatient);
 
@@ -1363,7 +1375,11 @@ class DataStore {
       },
       riskLevel: 'HIGH',
       lastEncounterDate: '2026-06-25',
-      createdAt: '2023-09-01T00:00:00Z'
+      createdAt: '2023-09-01T00:00:00Z',
+      assignedDoctorId: 'doc-fortis-201',
+      assignedDoctorName: 'Dr. Sunita Rao',
+      assignedHospitalId: 'hosp-fortis-02',
+      assignedDoctorIds: ['doc-fortis-201']
     };
     this.patients.push(amitPatient);
 
@@ -1512,9 +1528,69 @@ class DataStore {
       },
       riskLevel: 'MODERATE',
       lastEncounterDate: '2026-05-19',
-      createdAt: '2024-01-01T00:00:00Z'
+      createdAt: '2024-01-01T00:00:00Z',
+      assignedDoctorId: 'doc-aiims-401',
+      assignedDoctorName: 'Prof. Rajesh K. Verma',
+      assignedHospitalId: 'hosp-aiims-04',
+      assignedDoctorIds: ['doc-aiims-401']
     };
     this.patients.push(sunitaPatient);
+
+    // ==========================================
+    // PATIENT 5: VIKRAM MALHOTRA (MED-00010005) - Dedicated Roster Isolation for Dr. Rajiv Malhotra
+    // ==========================================
+    const vikramUser: User = {
+      id: 'usr-demo-005',
+      email: 'vikram.malhotra@medisutra.in',
+      passwordHash: demoPasswordHash,
+      role: 'PATIENT',
+      createdAt: '2024-02-01T00:00:00Z'
+    };
+    this.users.push(vikramUser);
+
+    const vikramPatient: Patient = {
+      id: 'pat-demo-005',
+      userId: vikramUser.id,
+      healthId: 'MED-00010005',
+      fullName: 'Vikram Malhotra',
+      dob: '1982-08-14',
+      gender: 'Male',
+      bloodGroup: 'B+',
+      allergies: ['Peanuts'],
+      emergencyContact: {
+        name: 'Ritu Malhotra',
+        phone: '+91-9877112233',
+        relationship: 'Spouse'
+      },
+      baselineHistory: {
+        familialRisks: ['Coronary Artery Disease'],
+        habits: 'Desk worker'
+      },
+      riskLevel: 'MODERATE',
+      lastEncounterDate: '2026-09-10',
+      createdAt: '2024-02-01T00:00:00Z',
+      assignedDoctorId: 'doc-apollo-102',
+      assignedDoctorName: 'Dr. Rajiv Malhotra',
+      assignedHospitalId: 'hosp-apollo-01',
+      assignedDoctorIds: ['doc-apollo-102']
+    };
+    this.patients.push(vikramPatient);
+
+    const vikramCond: PatientCondition = {
+      id: 'cond-vikram-001',
+      patientId: vikramPatient.id,
+      conditionCode: 'CAD',
+      conditionName: 'Stable Angina Pectoris',
+      bodySystem: 'Cardiovascular',
+      currentStatus: 'UNDER_TREATMENT',
+      severity: 'MODERATE',
+      firstDocumentedDate: '2024-03-01',
+      diagnosedDate: '2024-03-01',
+      treatmentSummary: 'Aspirin 75mg, Atorvastatin 20mg, lifestyle counseling.',
+      diagnosingFacility: 'Apollo Hospitals & Heart Institute',
+      diagnosingDoctor: 'Dr. Rajiv Malhotra'
+    };
+    this.conditions.push(vikramCond);
 
     const sunitaAsthma: PatientCondition = {
       id: 'cond-sunita-001',
@@ -1806,6 +1882,9 @@ class DataStore {
     emergencyContact?: { name: string; phone: string; relationship: string };
     baselineHistory?: Record<string, any>;
     registeringHospital?: string;
+    assignedDoctorId?: string;
+    assignedDoctorName?: string;
+    assignedHospitalId?: string;
   }) {
     const salt = bcrypt.genSaltSync(10);
     const passwordHash = bcrypt.hashSync('demo1234', salt);
@@ -1843,7 +1922,11 @@ class DataStore {
       },
       riskLevel: 'LOW',
       lastEncounterDate: new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      assignedDoctorId: params.assignedDoctorId,
+      assignedDoctorName: params.assignedDoctorName,
+      assignedHospitalId: params.assignedHospitalId,
+      assignedDoctorIds: params.assignedDoctorId ? [params.assignedDoctorId] : []
     };
     this.patients.unshift(newPatient);
 

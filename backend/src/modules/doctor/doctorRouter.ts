@@ -3,14 +3,36 @@ import { v4 as uuidv4 } from 'uuid';
 import jwt from 'jsonwebtoken';
 import { CONFIG } from '../../config';
 import { db, DoctorClinicalNote } from '../../database/store';
-import { requireClinicalStaff, requirePatientOrClinicalStaff } from '../../middleware/auth';
+import { requireClinicalStaff, requireDoctorPatientAssignment } from '../../middleware/auth';
 
 const router = Router();
 
-// GET /api/v1/doctor/patients - Patient Roster for Doctors
+// GET /api/v1/doctor/patients - Patient Roster for Doctors (Filtered strictly by doctor assignment)
 router.get('/patients', requireClinicalStaff, (req: Request, res: Response) => {
+  const user = req.user;
+  let accessiblePatients = db.patients;
+
+  if (user && user.role === 'DOCTOR') {
+    const docId = user.doctorId;
+    const docName = user.doctorName?.toLowerCase();
+
+    accessiblePatients = db.patients.filter(p => {
+      const isAssigned =
+        (docId && (p.assignedDoctorId === docId || p.assignedDoctorIds?.includes(docId))) ||
+        (docName && p.assignedDoctorName?.toLowerCase() === docName) ||
+        (docName && (p as any).assignedDoctor?.toLowerCase() === docName) ||
+        (docName && db.healthEvents.some(e => e.patientId === p.id && e.attendingDoctor?.toLowerCase() === docName));
+      return isAssigned;
+    });
+  } else if (user && user.role === 'HOSPITAL_ADMIN') {
+    const hospId = user.hospitalId;
+    if (hospId) {
+      accessiblePatients = db.patients.filter(p => p.assignedHospitalId === hospId || !p.assignedHospitalId);
+    }
+  }
+
   // Aggregate roster with clinical intelligence stats
-  const roster = db.patients.map(p => {
+  const roster = accessiblePatients.map(p => {
     const pConditions = db.conditions.filter(c => c.patientId === p.id);
     const pDocs = db.documents.filter(d => d.patientId === p.id);
     const pActiveConds = pConditions.filter(c => c.currentStatus !== 'RESOLVED');
@@ -26,6 +48,9 @@ router.get('/patients', requireClinicalStaff, (req: Request, res: Response) => {
       allergies: p.allergies,
       riskLevel: p.riskLevel || 'MODERATE',
       lastEncounterDate: p.lastEncounterDate || '2026-07-15',
+      assignedDoctorId: p.assignedDoctorId,
+      assignedDoctorName: p.assignedDoctorName || (p as any).assignedDoctor,
+      assignedHospitalId: p.assignedHospitalId,
       activeConditionsCount: pActiveConds.length,
       resolvedConditionsCount: pResolvedConds.length,
       totalReportsCount: pDocs.length,
@@ -40,8 +65,8 @@ router.get('/patients', requireClinicalStaff, (req: Request, res: Response) => {
   });
 });
 
-// GET /api/v1/doctor/patients/:id/dossier - Complete Longitudinal Clinical Dossier
-router.get('/patients/:id/dossier', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
+// GET /api/v1/doctor/patients/:id/dossier - Complete Longitudinal Clinical Dossier (Strict Assignment Isolation)
+router.get('/patients/:id/dossier', requireDoctorPatientAssignment('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   const patient = db.patients.find(p => p.id === id);
 
@@ -120,8 +145,8 @@ router.get('/patients/:id/dossier', requirePatientOrClinicalStaff('id'), (req: R
   });
 });
 
-// PUT /api/v1/doctor/patients/:id/conditions/:condId/status - Update Condition Status
-router.put('/patients/:id/conditions/:condId/status', requireClinicalStaff, (req: Request, res: Response) => {
+// PUT /api/v1/doctor/patients/:id/conditions/:condId/status - Update Condition Status (Strict Assignment Isolation)
+router.put('/patients/:id/conditions/:condId/status', requireDoctorPatientAssignment('id'), (req: Request, res: Response) => {
   const { id, condId } = req.params;
   const { newStatus, clinicalNote, doctorName = 'Dr. Alok Sen, MD' } = req.body;
 
@@ -161,8 +186,8 @@ router.put('/patients/:id/conditions/:condId/status', requireClinicalStaff, (req
   });
 });
 
-// POST /api/v1/doctor/patients/:id/notes - Add Clinical Consultation Note
-router.post('/patients/:id/notes', requireClinicalStaff, (req: Request, res: Response) => {
+// POST /api/v1/doctor/patients/:id/notes - Add Clinical Consultation Note (Strict Assignment Isolation)
+router.post('/patients/:id/notes', requireDoctorPatientAssignment('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   const { content, assessmentType = 'ROUTINE_REVIEW', doctorName = 'Dr. Alok Sen, MD', doctorSpecialization = 'Internal Medicine' } = req.body;
 
@@ -190,8 +215,8 @@ router.post('/patients/:id/notes', requireClinicalStaff, (req: Request, res: Res
   });
 });
 
-// GET /api/v1/doctor/patients/:id/fhir-export - Export Full Longitudinal HL7 FHIR R4 Bundle
-router.get('/patients/:id/fhir-export', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
+// GET /api/v1/doctor/patients/:id/fhir-export - Export Full Longitudinal HL7 FHIR R4 Bundle (Strict Assignment Isolation)
+router.get('/patients/:id/fhir-export', requireDoctorPatientAssignment('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   const patient = db.patients.find(p => p.id === id);
 
@@ -217,8 +242,8 @@ router.get('/patients/:id/fhir-export', requirePatientOrClinicalStaff('id'), (re
   }
 });
 
-// GET /api/v1/doctor/patients/:id/graph - Temporal Clinical Knowledge Graph
-router.get('/patients/:id/graph', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
+// GET /api/v1/doctor/patients/:id/graph - Temporal Clinical Knowledge Graph (Strict Assignment Isolation)
+router.get('/patients/:id/graph', requireDoctorPatientAssignment('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const { ClinicalGraphEngine } = require('../ai/clinicalGraph');
@@ -235,8 +260,8 @@ router.get('/patients/:id/graph', requirePatientOrClinicalStaff('id'), (req: Req
   }
 });
 
-// GET /api/v1/doctor/patients/:id/conditions/:condId/trajectory - Deterministic Condition Trajectory
-router.get('/patients/:id/conditions/:condId/trajectory', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
+// GET /api/v1/doctor/patients/:id/conditions/:condId/trajectory - Deterministic Condition Trajectory (Strict Assignment Isolation)
+router.get('/patients/:id/conditions/:condId/trajectory', requireDoctorPatientAssignment('id'), (req: Request, res: Response) => {
   const { id, condId } = req.params;
   try {
     const { ClinicalGraphEngine } = require('../ai/clinicalGraph');
@@ -259,8 +284,8 @@ router.get('/patients/:id/conditions/:condId/trajectory', requirePatientOrClinic
   }
 });
 
-// GET /api/v1/doctor/patients/:id/resolved-history - Verified Resolved Diseases Summary
-router.get('/patients/:id/resolved-history', requirePatientOrClinicalStaff('id'), (req: Request, res: Response) => {
+// GET /api/v1/doctor/patients/:id/resolved-history - Verified Resolved Diseases Summary (Strict Assignment Isolation)
+router.get('/patients/:id/resolved-history', requireDoctorPatientAssignment('id'), (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const { ClinicalGraphEngine } = require('../ai/clinicalGraph');

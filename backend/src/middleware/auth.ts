@@ -14,6 +14,7 @@ export interface AuthenticatedUser {
   userId: string;
   patientId?: string;
   doctorId?: string;
+  doctorName?: string;
   hospitalId?: string;
   email: string;
   role: UserRole;
@@ -241,4 +242,116 @@ export const optionalAuth = (req: Request, res: Response, next: NextFunction) =>
     }
   }
   next();
+};
+
+/**
+ * Require Doctor-Patient Assignment Isolation
+ * Guarantees that licensed physicians can ONLY inspect & manage patients explicitly
+ * assigned under their care roster, preventing unauthorized medical snooping.
+ */
+export const requireDoctorPatientAssignment = (paramKey = 'id') => {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const targetPatientId = req.params[paramKey] || req.body?.[paramKey] || req.query?.[paramKey];
+
+    if (!req.user) {
+      const authHeader = req.headers['authorization'];
+      const token = authHeader && authHeader.split(' ')[1];
+      if (token) {
+        try {
+          req.user = jwt.verify(token, CONFIG.JWT_SECRET) as AuthenticatedUser;
+        } catch {
+          return res.status(401).json({
+            success: false,
+            error: { code: 'TOKEN_INVALID', message: 'Invalid or expired authorization token.' }
+          });
+        }
+      }
+    }
+
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'AUTHENTICATION_REQUIRED', message: 'Authentication required.' }
+      });
+    }
+
+    const user = req.user;
+
+    // Platform ADMIN has overarching audit privileges
+    if (user.role === UserRole.ADMIN) {
+      return next();
+    }
+
+    // Resolve target patient record
+    const patient = db.patients.find(p => 
+      p.id === targetPatientId || 
+      p.healthId.toLowerCase() === targetPatientId?.toLowerCase()
+    );
+
+    if (!patient) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'PATIENT_NOT_FOUND', message: `Patient '${targetPatientId}' not found.` }
+      });
+    }
+
+    // Citizen access: Patients may only access their own record
+    if (user.role === UserRole.PATIENT) {
+      const isSelf = 
+        user.patientId === patient.id || 
+        user.userId === patient.userId ||
+        db.patients.some(p => p.id === user.patientId && p.id === patient.id);
+
+      if (!isSelf) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN_TENANT_ACCESS',
+            message: 'Cross-tenant access violation: Citizens may only access their own health records.'
+          }
+        });
+      }
+      return next();
+    }
+
+    // Doctor access: Strict roster check
+    if (user.role === UserRole.DOCTOR) {
+      const docId = user.doctorId;
+      const docName = user.doctorName?.toLowerCase();
+
+      const isAssigned = 
+        (docId && (patient.assignedDoctorId === docId || patient.assignedDoctorIds?.includes(docId))) ||
+        (docName && patient.assignedDoctorName?.toLowerCase() === docName) ||
+        (docName && db.healthEvents.some(e => e.patientId === patient.id && e.attendingDoctor?.toLowerCase() === docName));
+
+      if (!isAssigned) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN_DOCTOR_PATIENT_ACCESS',
+            message: `Access Denied: Patient '${patient.fullName}' (${patient.healthId}) is not assigned under your clinical roster. You cannot inspect or modify unassigned patient records.`
+          }
+        });
+      }
+
+      return next();
+    }
+
+    // Hospital Admin access: Facility boundary check
+    if (user.role === UserRole.HOSPITAL_ADMIN) {
+      const hospId = user.hospitalId;
+      if (hospId && patient.assignedHospitalId && patient.assignedHospitalId !== hospId) {
+        return res.status(403).json({
+          success: false,
+          error: {
+            code: 'FORBIDDEN_HOSPITAL_ACCESS',
+            message: 'Access Denied: Patient is not affiliated with your hospital facility.'
+          }
+        });
+      }
+      return next();
+    }
+
+    next();
+  };
 };

@@ -11,7 +11,8 @@ import { ReportsVaultSection } from './ReportsVaultSection';
 
 interface DoctorStationProps {
   authSession: AuthSession;
-  hospitalRegistry: any[];
+  doctorPatients?: any[];
+  hospitalRegistry?: any[];
   selectedDoctorPatientId: string;
   handleSelectDoctorPatient: (patientId: string) => void;
   doctorDossier: any;
@@ -53,6 +54,7 @@ interface DoctorStationProps {
 
 export const DoctorStation: React.FC<DoctorStationProps> = ({
   authSession,
+  doctorPatients,
   hospitalRegistry,
   selectedDoctorPatientId,
   handleSelectDoctorPatient,
@@ -173,31 +175,41 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
 
           {/* Patient Switcher Chips */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {hospitalRegistry.map(p => {
-              const isSelected = selectedDoctorPatientId === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleSelectDoctorPatient(p.id)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    border: isSelected ? '2px solid #0284C7' : '1px solid #CBD5E1',
-                    background: isSelected ? '#E0F2FE' : '#FFFFFF',
-                    color: isSelected ? '#0369A1' : '#334155',
-                    fontWeight: isSelected ? 800 : 600,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                >
-                  👤 {p.fullName} <span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>({p.healthId})</span>
-                </button>
-              );
-            })}
+            {(() => {
+              const rosterList = (doctorPatients && doctorPatients.length > 0) ? doctorPatients : (hospitalRegistry || []);
+              if (rosterList.length === 0) {
+                return (
+                  <span style={{ fontSize: '0.82rem', color: '#64748B', fontStyle: 'italic' }}>
+                    No patients currently assigned to your clinical roster.
+                  </span>
+                );
+              }
+              return rosterList.map(p => {
+                const isSelected = selectedDoctorPatientId === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleSelectDoctorPatient(p.id)}
+                    style={{
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      border: isSelected ? '2px solid #0284C7' : '1px solid #CBD5E1',
+                      background: isSelected ? '#E0F2FE' : '#FFFFFF',
+                      color: isSelected ? '#0369A1' : '#334155',
+                      fontWeight: isSelected ? 800 : 600,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    👤 {p.fullName} <span style={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>({p.healthId})</span>
+                  </button>
+                );
+              });
+            })()}
           </div>
         </div>
       </div>
