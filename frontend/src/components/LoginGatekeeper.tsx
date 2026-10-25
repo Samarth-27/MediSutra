@@ -33,7 +33,7 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
 
   // Doctor Form States
   const [docHospId, setDocHospId] = useState('hosp-apollo-01');
-  const [docLicense, setDocLicense] = useState('MCI-2023-8841');
+  const [docLicense, setDocLicense] = useState('MCI-2012-44120');
   const [docPassword, setDocPassword] = useState('doctorSecure2026!');
 
   // Citizen Form States

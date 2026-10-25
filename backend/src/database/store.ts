@@ -200,6 +200,13 @@ class DataStore {
             qualification: 'MD, DM',
             specialization: 'Cardiology',
             licenseNumber: 'MCI-2008-31998'
+          },
+          {
+            id: 'doc-apollo-103',
+            name: 'Dr. Sneha Roy',
+            qualification: 'MBBS, MD',
+            specialization: 'Endocrinology',
+            licenseNumber: 'MCI-2023-8841'
           }
         ]
       },
@@ -228,6 +235,13 @@ class DataStore {
             qualification: 'MS, DNB',
             specialization: 'Orthopaedics & Joint Care',
             licenseNumber: 'MCI-2015-11029'
+          },
+          {
+            id: 'doc-fortis-203',
+            name: 'Dr. Ananya Sen',
+            qualification: 'MS, DNB, FICO',
+            specialization: 'Retina & Ophthalmology',
+            licenseNumber: 'MMC-2019-9022'
           }
         ]
       },
