@@ -256,7 +256,13 @@ class ApiService {
     return res;
   }
 
-  async loginDoctor(hospitalId: string, licenseNumber: string, doctorName?: string, password?: string) {
+  async loginDoctor(hospitalId: string, licenseNumber: string, passwordOrName?: string, passwordOrUndefined?: string) {
+    let password = passwordOrUndefined || passwordOrName || 'doctorSecure2026!';
+    let doctorName: string | undefined = undefined;
+    if (passwordOrUndefined) {
+      doctorName = passwordOrName;
+      password = passwordOrUndefined;
+    }
     const res = await this.request('/hospitals/doctor/login', {
       method: 'POST',
       body: JSON.stringify({ hospitalId, licenseNumber, doctorName, password })

@@ -663,9 +663,9 @@ export default function App() {
   };
 
   // Handle Doctor Login
-  const handleDoctorLogin = async (hospId = selectedHospitalId, licNumber = loginDoctorLicense, _password = 'doctorSecure2026!') => {
+  const handleDoctorLogin = async (hospId = selectedHospitalId, licNumber = loginDoctorLicense, password = 'doctorSecure2026!') => {
     try {
-      const res = await api.loginDoctor(hospId, licNumber);
+      const res = await api.loginDoctor(hospId, licNumber, password);
       const doc = res.data.doctor;
       const hosp = res.data.hospital;
       setSelectedHospitalDoctor(doc.name);
