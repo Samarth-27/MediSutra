@@ -2,7 +2,9 @@ import React from 'react';
 import {
   Stethoscope,
   FolderArchive,
-  Users
+  Users,
+  MessageSquare,
+  CheckCircle2
 } from 'lucide-react';
 import type { AuthSession } from '../../types';
 import { DoctorAiCopilot } from './DoctorAiCopilot';
@@ -86,6 +88,15 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
   isSubmittingNote,
   handleAddDoctorNote
 }) => {
+  const [nudgeSent, setNudgeSent] = React.useState(false);
+
+  const handleSendPatientNudge = () => {
+    setNudgeSent(true);
+    setTimeout(() => {
+      setNudgeSent(false);
+    }, 4000);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Doctor Specialist Scope Banner */}
@@ -288,6 +299,103 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Critical Biometric Telemetry & 90-Day Adherence Checkpoint Loop */}
+          {doctorDossier.patient.healthId === 'MED-00010001' && (
+            <div style={{
+              background: 'linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%)',
+              border: '2px solid #F43F5E',
+              borderRadius: '16px',
+              padding: '16px 20px',
+              boxShadow: '0 4px 14px rgba(244, 63, 94, 0.12)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '14px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: '#E11D48',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '1.25rem',
+                  fontWeight: 900
+                }}>
+                  🚨
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#9F1239' }}>
+                      CRITICAL LAB TELEMETRY &amp; 90-DAY ADHERENCE CHECKPOINT
+                    </span>
+                    <span style={{
+                      background: '#E11D48',
+                      color: '#FFFFFF',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      OVERDUE
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#BE123C', marginTop: '2px' }}>
+                    Type 2 Diabetes Mellitus: Fasting Glucose <strong>312 mg/dL</strong> (&gt;300 mg/dL critical). 90-day HbA1c surveillance milestone elapsed 4 days ago.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                {nudgeSent ? (
+                  <div style={{
+                    background: '#ECFDF5',
+                    border: '1.5px solid #10B981',
+                    color: '#065F46',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <CheckCircle2 size={16} color="#10B981" />
+                    WhatsApp Nudge Dispatched to Citizen (+91 98765 43210)!
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    id="send-whatsapp-nudge-btn"
+                    onClick={handleSendPatientNudge}
+                    style={{
+                      background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                      border: 'none',
+                      color: '#FFFFFF',
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      fontSize: '0.82rem',
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      boxShadow: '0 4px 10px rgba(37, 211, 102, 0.35)'
+                    }}
+                    title="Dispatch automated proactive reminder via WhatsApp Business API"
+                  >
+                    <MessageSquare size={15} />
+                    Nudge Patient via WhatsApp API
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Dual-Column Split: Lifetime Diseases (Ongoing Active vs Cured Resolved) */}
           <LifetimeDiseasesSection

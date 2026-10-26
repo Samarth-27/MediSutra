@@ -6,7 +6,8 @@ import {
   Lock,
   ArrowRight,
   HeartPulse,
-  AlertCircle
+  AlertCircle,
+  Cpu
 } from 'lucide-react';
 
 export interface LoginGatekeeperProps {
@@ -15,6 +16,7 @@ export interface LoginGatekeeperProps {
   onDoctorLogin: (hospitalId: string, licenseNumber: string, password?: string) => Promise<void>;
   onCitizenLogin: (citizenId: string, otp?: string) => Promise<void>;
   isLoading?: boolean;
+  onOpenArchitectureStudio?: () => void;
 }
 
 export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
@@ -22,7 +24,8 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
   onHospitalLogin,
   onDoctorLogin,
   onCitizenLogin,
-  isLoading = false
+  isLoading = false,
+  onOpenArchitectureStudio
 }) => {
   const [activeTab, setActiveTab] = useState<'HOSPITAL' | 'DOCTOR' | 'CITIZEN'>('HOSPITAL');
   
@@ -146,19 +149,48 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
           </div>
         </div>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'rgba(15, 23, 42, 0.6)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          padding: '6px 14px',
-          borderRadius: '20px',
-          fontSize: '0.75rem',
-          color: '#CBD5E1'
-        }}>
-          <Lock size={14} color="#14B8A6" />
-          Credential-Gated Isolation (Strict Scope Control)
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {onOpenArchitectureStudio && (
+            <button
+              id="gatekeeper-arch-studio-btn"
+              type="button"
+              onClick={onOpenArchitectureStudio}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: 'linear-gradient(135deg, #0F766E, #0D9488)',
+                border: 'none',
+                color: '#FFFFFF',
+                padding: '7px 16px',
+                borderRadius: '20px',
+                fontSize: '0.78rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(13, 148, 136, 0.4)',
+                transition: 'all 0.2s ease'
+              }}
+              title="Launch Senior Staff Architectural & Codebase Audit Studio"
+            >
+              <Cpu size={15} />
+              Architecture Audit Studio
+            </button>
+          )}
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            background: 'rgba(15, 23, 42, 0.6)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            fontSize: '0.75rem',
+            color: '#CBD5E1'
+          }}>
+            <Lock size={14} color="#14B8A6" />
+            Credential-Gated Isolation (Strict Scope Control)
+          </div>
         </div>
       </div>
 

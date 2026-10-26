@@ -17,9 +17,25 @@ import {
   ProvisionDoctorModal,
   UniversalLoginModal
 } from './components/modals';
+import { ArchitectureCommandCenter } from './components/audit/ArchitectureCommandCenter';
 
 export default function App() {
   const [, setRole] = useState<'PATIENT' | 'DOCTOR'>('PATIENT');
+
+  // Senior Staff Architectural Audit Command Studio Toggle State
+  const [isArchitectureStudioOpen, setIsArchitectureStudioOpen] = useState<boolean>(() => {
+    return window.location.hash === '#audit' || window.location.hash === '#architecture';
+  });
+
+  useEffect(() => {
+    const handleHash = () => {
+      if (window.location.hash === '#audit' || window.location.hash === '#architecture') {
+        setIsArchitectureStudioOpen(true);
+      }
+    };
+    window.addEventListener('hashchange', handleHash);
+    return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
 
   // Zero-Trust Role-Based Authentication Session
   const [authSession, setAuthSession] = useState<AuthSession | null>(() => {
@@ -799,6 +815,17 @@ export default function App() {
     }
   };
 
+  // If Architecture Command Studio is opened from login gatekeeper or URL hash
+  if (isArchitectureStudioOpen && !authSession) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#F8FAFC', padding: '24px 20px' }}>
+        <div style={{ maxWidth: '1360px', margin: '0 auto' }}>
+          <ArchitectureCommandCenter onClose={() => setIsArchitectureStudioOpen(false)} />
+        </div>
+      </div>
+    );
+  }
+
   // ========================================================
   // ZERO-TRUST GATEKEEPER: STRICT ENTRY THROUGH CREDENTIALS ONLY
   // ========================================================
@@ -809,6 +836,7 @@ export default function App() {
         onHospitalLogin={handleHospitalLogin}
         onDoctorLogin={handleDoctorLogin}
         onCitizenLogin={handleCitizenLogin}
+        onOpenArchitectureStudio={() => setIsArchitectureStudioOpen(true)}
       />
     );
   }
@@ -827,12 +855,18 @@ export default function App() {
         onChangeDigiLockerSubTab={setDigiLockerSubTab}
         digiLockerData={digiLockerData}
         timelineEventsCount={digiLockerData?.recentTimeline?.length || timelineEvents?.length || 0}
+        onOpenArchitectureStudio={() => setIsArchitectureStudioOpen(true)}
       />
 
       {/* Main Content Area */}
       <main style={{ flex: 1, padding: '28px 0' }}>
         <div className="container">
-          {/* PORTAL 1: HOSPITAL INTAKE & OPD CONSOLE (HOSPITAL ADMIN) */}
+          {/* ARCHITECTURE AUDIT COMMAND CENTER */}
+          {isArchitectureStudioOpen ? (
+            <ArchitectureCommandCenter onClose={() => setIsArchitectureStudioOpen(false)} />
+          ) : (
+            <>
+              {/* PORTAL 1: HOSPITAL INTAKE & OPD CONSOLE (HOSPITAL ADMIN) */}
           {authSession.role === 'HOSPITAL_ADMIN' && (
             <HospitalConsole
               authSession={authSession}
@@ -921,6 +955,8 @@ export default function App() {
               timelineEvents={timelineEvents}
               onInspectReport={setInspectingReport}
             />
+          )}
+            </>
           )}
         </div>
       </main>

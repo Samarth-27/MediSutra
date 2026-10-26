@@ -2,7 +2,9 @@ import React from 'react';
 import {
   Building2,
   Users,
-  CheckCircle2
+  CheckCircle2,
+  BellRing,
+  AlertTriangle
 } from 'lucide-react';
 import type { AuthSession } from '../../types';
 
@@ -54,6 +56,32 @@ export const HospitalConsole: React.FC<HospitalConsoleProps> = ({
   setCreateDoctorModalOpen
 }) => {
   const currentHospital = hospitals.find(h => h.id === selectedHospitalId);
+
+  const playPanicAlertChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const playTone = (freq: number, start: number, dur: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+        gain.gain.setValueAtTime(0.2, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + dur);
+      };
+      playTone(880, 0, 0.2);
+      playTone(1174, 0.22, 0.2);
+      playTone(880, 0.44, 0.2);
+      playTone(1174, 0.66, 0.3);
+    } catch (e) {
+      console.warn('Audio chime unsupported:', e);
+    }
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -367,6 +395,83 @@ export const HospitalConsole: React.FC<HospitalConsoleProps> = ({
               </button>
             </div>
 
+            {/* Critical Panic Lab Value Alert Banner for Hospital Station */}
+            <div style={{
+              background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
+              border: '2px solid #EF4444',
+              borderRadius: '12px',
+              padding: '14px 18px',
+              marginBottom: '18px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              boxShadow: '0 4px 14px rgba(239, 68, 68, 0.15)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: '#DC2626',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 900,
+                  fontSize: '1.2rem'
+                }}>
+                  🚨
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#991B1B' }}>
+                      CRITICAL CLINICAL PANIC LAB VALUE ALERT
+                    </span>
+                    <span style={{
+                      background: '#DC2626',
+                      color: '#FFFFFF',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '4px'
+                    }}>
+                      TRIAGE PRIORITY STAT
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: '#B91C1C', marginTop: '2px' }}>
+                    Biometric Telemetry: <strong>Rahul Sharma (UHID: MED-00010001)</strong> flagged with Fasting Glucose <strong>312 mg/dL</strong> (&gt;300 mg/dL critical cutoff) &amp; Potassium <strong>6.2 mEq/L</strong> (&gt;6.0 mEq/L). Immediate triage prioritization enforced.
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  id="test-chime-btn"
+                  onClick={playPanicAlertChime}
+                  style={{
+                    background: '#DC2626',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    fontSize: '0.8rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(220, 38, 38, 0.35)'
+                  }}
+                >
+                  <BellRing size={14} />
+                  🔊 Test Monitor Alert Chime
+                </button>
+              </div>
+            </div>
+
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                 <thead>
@@ -382,66 +487,99 @@ export const HospitalConsole: React.FC<HospitalConsoleProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {(hospitalDashboardData?.opdQueue || []).map((q: any) => (
-                    <tr key={q.tokenNumber} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontWeight: 800, background: '#F1F5F9', padding: '4px 10px', borderRadius: '8px', fontSize: '0.82rem', color: '#0F172A' }}>
-                          {q.tokenNumber}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.94rem' }}>
-                          {q.patientName}
-                        </div>
-                        <div style={{ fontSize: '0.76rem', color: '#0F766E', fontFamily: 'monospace', fontWeight: 700 }}>
-                          {q.healthId}
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.82rem' }}>
-                        {q.age} yrs • {q.gender} • <strong>{q.bloodGroup}</strong>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span className={`badge ${q.priority === 'Urgent' ? 'badge-danger' : q.priority === 'Follow-up' ? 'badge-teal' : 'badge-normal'}`}>
-                          {q.priority}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px', color: '#334155', maxWidth: '240px' }}>
-                        {q.chiefComplaint}
-                      </td>
-                      <td style={{ padding: '14px 16px', color: '#0F766E', fontWeight: 600, fontSize: '0.82rem' }}>
-                        🩺 {q.attendingDoctor}
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          color: q.status.includes('Consultation') ? '#0D9488' : '#D97706',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          ● {q.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          color: '#0F766E',
-                          background: '#F0FDFA',
-                          border: '1px solid #CCFBF1',
-                          padding: '4px 10px',
-                          borderRadius: '8px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          <CheckCircle2 size={12} color="#0D9488" />
-                          Intake Registered
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {(hospitalDashboardData?.opdQueue || []).map((q: any) => {
+                    const isPanic = q.patientName === 'Rahul Sharma' || q.healthId === 'MED-00010001';
+                    return (
+                      <tr
+                        key={q.tokenNumber}
+                        style={{
+                          borderBottom: '1px solid #F1F5F9',
+                          background: isPanic ? '#FFF5F5' : 'transparent',
+                          borderLeft: isPanic ? '4px solid #EF4444' : 'none'
+                        }}
+                      >
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{
+                            fontWeight: 800,
+                            background: isPanic ? '#FEE2E2' : '#F1F5F9',
+                            color: isPanic ? '#B91C1C' : '#0F172A',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            fontSize: '0.82rem'
+                          }}>
+                            {q.tokenNumber}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div style={{ fontWeight: 800, color: '#0F172A', fontSize: '0.94rem' }}>
+                            {q.patientName}
+                          </div>
+                          <div style={{ fontSize: '0.76rem', color: '#0F766E', fontFamily: 'monospace', fontWeight: 700 }}>
+                            {q.healthId}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.82rem' }}>
+                          {q.age} yrs • {q.gender} • <strong>{q.bloodGroup}</strong>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          {isPanic ? (
+                            <span style={{
+                              background: '#DC2626',
+                              color: '#FFFFFF',
+                              padding: '4px 8px',
+                              borderRadius: '6px',
+                              fontWeight: 800,
+                              fontSize: '0.72rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}>
+                              🚨 PANIC: GLU &gt; 300
+                            </span>
+                          ) : (
+                            <span className={`badge ${q.priority === 'Urgent' ? 'badge-danger' : q.priority === 'Follow-up' ? 'badge-teal' : 'badge-normal'}`}>
+                              {q.priority}
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#334155', maxWidth: '240px' }}>
+                          {q.chiefComplaint}
+                        </td>
+                        <td style={{ padding: '14px 16px', color: '#0F766E', fontWeight: 600, fontSize: '0.82rem' }}>
+                          🩺 {q.attendingDoctor}
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            color: isPanic ? '#DC2626' : (q.status.includes('Consultation') ? '#0D9488' : '#D97706'),
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            ● {isPanic ? 'STAT High-Risk Triage' : q.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: '14px 16px' }}>
+                          <span style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            color: isPanic ? '#B91C1C' : '#0F766E',
+                            background: isPanic ? '#FEE2E2' : '#F0FDFA',
+                            border: isPanic ? '1px solid #FCA5A5' : '1px solid #CCFBF1',
+                            padding: '4px 10px',
+                            borderRadius: '8px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}>
+                            {isPanic ? <AlertTriangle size={12} color="#DC2626" /> : <CheckCircle2 size={12} color="#0D9488" />}
+                            {isPanic ? 'Panic Value Priority' : 'Intake Registered'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

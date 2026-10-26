@@ -11,7 +11,8 @@ import {
   Clock,
   History,
   FileText,
-  QrCode
+  QrCode,
+  Cpu
 } from 'lucide-react';
 import type { AuthSession } from '../../types';
 
@@ -26,6 +27,7 @@ interface HeaderProps {
   onChangeDigiLockerSubTab: (tab: any) => void;
   digiLockerData: any;
   timelineEventsCount: number;
+  onOpenArchitectureStudio?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,7 +40,8 @@ export const Header: React.FC<HeaderProps> = ({
   digiLockerSubTab,
   onChangeDigiLockerSubTab,
   digiLockerData,
-  timelineEventsCount
+  timelineEventsCount,
+  onOpenArchitectureStudio
 }) => {
   return (
     <header style={{
@@ -136,6 +139,32 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             </div>
           </div>
+
+          {/* Architecture Audit Command Center Button */}
+          {onOpenArchitectureStudio && (
+            <button
+              id="open-arch-command-center-btn"
+              onClick={onOpenArchitectureStudio}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '7px',
+                background: 'linear-gradient(135deg, #0F766E, #0D9488)',
+                border: 'none',
+                color: '#FFFFFF',
+                padding: '8px 15px',
+                borderRadius: '10px',
+                fontSize: '0.82rem',
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(13, 148, 136, 0.3)'
+              }}
+              title="Launch Senior Staff Architectural & Codebase Audit Studio"
+            >
+              <Cpu size={15} />
+              Architecture Studio
+            </button>
+          )}
 
           {/* Switch Role Button */}
           <button
