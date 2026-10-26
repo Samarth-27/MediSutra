@@ -101,14 +101,23 @@ export const CitizenDigiLocker: React.FC<CitizenDigiLockerProps> = ({
               <Lock size={13} color="#6EE7B7" />
               AUTHENTICATED SOVEREIGN VAULT
             </div>
-            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#FFFFFF' }}>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FFFFFF' }}>
               {authSession.citizen?.fullName || digiLockerData?.patient?.fullName || 'Rahul Sharma'}
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#99F6E4', marginTop: '3px', fontFamily: 'monospace', fontWeight: 700 }}>
-              ABHA UHID: {authSession.citizen?.healthId || digiLockerData?.patient?.healthId || 'MED-00010001'}
+            {/* Zero-Pill Typographic Demographic Metadata */}
+            <div className="clinical-metadata-row" style={{ marginTop: '5px', color: '#CCFBF1' }}>
+              <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#5EEAD4' }}>
+                {authSession.citizen?.healthId || digiLockerData?.patient?.healthId || 'MED-00010001'}
+              </span>
+              <span className="meta-separator" aria-hidden="true" style={{ color: 'rgba(255,255,255,0.4)' }}>·</span>
+              <span>38 Yrs / Male</span>
+              <span className="meta-separator" aria-hidden="true" style={{ color: 'rgba(255,255,255,0.4)' }}>·</span>
+              <span style={{ fontWeight: 600 }}>Blood Group: B+</span>
+              <span className="meta-separator" aria-hidden="true" style={{ color: 'rgba(255,255,255,0.4)' }}>·</span>
+              <span>Apollo Hospitals New Delhi</span>
             </div>
-            <div style={{ fontSize: '0.72rem', color: '#CCFBF1', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle2 size={13} color="#34D399" /> Zero-Trust Verified • OTP Authenticated
+            <div style={{ fontSize: '0.72rem', color: '#99F6E4', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}>
+              <CheckCircle2 size={13} color="#34D399" /> Zero-Trust Verified · OTP Authenticated
             </div>
           </div>
         </div>
@@ -443,14 +452,22 @@ export const CitizenDigiLocker: React.FC<CitizenDigiLockerProps> = ({
                 {digiLockerData?.digitalHealthCard?.fullName?.split(' ').map((n: string) => n[0]).join('') || 'RS'}
               </div>
               <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FFFFFF', marginBottom: '4px' }}>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 6px 0' }}>
                   {digiLockerData?.digitalHealthCard?.fullName || 'Rahul Sharma'}
                 </h2>
-                <div style={{ fontSize: '0.84rem', color: '#94A3B8' }}>
-                  DOB: <strong>{digiLockerData?.digitalHealthCard?.dob || '1987-05-14'}</strong> • Gender: <strong>{digiLockerData?.digitalHealthCard?.gender || 'Male'}</strong>
-                </div>
-                <div style={{ fontSize: '0.84rem', color: '#94A3B8', marginTop: '2px' }}>
-                  Blood Group: <strong style={{ color: '#F87171' }}>{digiLockerData?.digitalHealthCard?.bloodGroup || 'B+'}</strong>
+                {/* Zero-Pill Demographic Metadata Row */}
+                <div className="clinical-metadata-row" style={{ color: '#CBD5E1' }}>
+                  <span style={{ fontFamily: 'monospace', fontWeight: 800, color: '#38BDF8' }}>
+                    {digiLockerData?.digitalHealthCard?.uhid || 'MED-00010001'}
+                  </span>
+                  <span className="meta-separator" aria-hidden="true" style={{ color: 'rgba(255,255,255,0.4)' }}>·</span>
+                  <span>{digiLockerData?.digitalHealthCard?.gender || 'Male'}</span>
+                  <span className="meta-separator" aria-hidden="true" style={{ color: 'rgba(255,255,255,0.4)' }}>·</span>
+                  <span>DOB: {digiLockerData?.digitalHealthCard?.dob || '1987-05-14'}</span>
+                  <span className="meta-separator" aria-hidden="true" style={{ color: 'rgba(255,255,255,0.4)' }}>·</span>
+                  <span style={{ color: '#F87171', fontWeight: 700 }}>Blood Group: {digiLockerData?.digitalHealthCard?.bloodGroup || 'B+'}</span>
+                  <span className="meta-separator" aria-hidden="true" style={{ color: 'rgba(255,255,255,0.4)' }}>·</span>
+                  <span>Apollo Hospitals New Delhi</span>
                 </div>
               </div>
             </div>

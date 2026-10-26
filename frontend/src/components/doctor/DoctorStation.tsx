@@ -4,7 +4,8 @@ import {
   FolderArchive,
   Users,
   MessageSquare,
-  CheckCircle2
+  CheckCircle2,
+  Keyboard
 } from 'lucide-react';
 import type { AuthSession } from '../../types';
 import { DoctorAiCopilot } from './DoctorAiCopilot';
@@ -96,6 +97,63 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
       setNudgeSent(false);
     }, 4000);
   };
+
+  // Physician Keyboard Navigation & Hotkeys
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is currently typing in an input, textarea, or contentEditable element
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      const roster = (doctorPatients && doctorPatients.length > 0) ? doctorPatients : (hospitalRegistry || []);
+      if (!roster || roster.length === 0) return;
+
+      const currentIndex = roster.findIndex((p: any) => p.id === selectedDoctorPatientId);
+
+      // Cycle previous patient: '[' or Alt+ArrowLeft
+      if (e.key === '[' || (e.altKey && e.key === 'ArrowLeft')) {
+        e.preventDefault();
+        const prevIndex = (currentIndex - 1 + roster.length) % roster.length;
+        handleSelectDoctorPatient(roster[prevIndex].id);
+      }
+      // Cycle next patient: ']' or Alt+ArrowRight
+      else if (e.key === ']' || (e.altKey && e.key === 'ArrowRight')) {
+        e.preventDefault();
+        const nextIndex = (currentIndex + 1) % roster.length;
+        handleSelectDoctorPatient(roster[nextIndex].id);
+      }
+      // Hotkey: Alt+E -> Record Disease Encounter
+      else if (e.altKey && (e.key === 'e' || e.key === 'E')) {
+        e.preventDefault();
+        setDiagnosisModalOpen(true);
+      }
+      // Hotkey: Alt+R -> Issue Diagnostic Lab Report
+      else if (e.altKey && (e.key === 'r' || e.key === 'R')) {
+        e.preventDefault();
+        setIssueReportModalOpen(true);
+      }
+      // Hotkey: Alt+W -> Dispatch WhatsApp Nudge
+      else if (e.altKey && (e.key === 'w' || e.key === 'W')) {
+        e.preventDefault();
+        if (doctorDossier?.patient?.healthId === 'MED-00010001') {
+          handleSendPatientNudge();
+        }
+      }
+      // Hotkey: Alt+1..9 -> Quick Select Patient by Number
+      else if (e.altKey && e.key >= '1' && e.key <= '9') {
+        const num = parseInt(e.key, 10) - 1;
+        if (num < roster.length) {
+          e.preventDefault();
+          handleSelectDoctorPatient(roster[num].id);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [doctorPatients, hospitalRegistry, selectedDoctorPatientId, doctorDossier, handleSelectDoctorPatient, setDiagnosisModalOpen, setIssueReportModalOpen]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -222,6 +280,18 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
               });
             })()}
           </div>
+
+          {/* Physician Keyboard Shortcuts Bar */}
+          <div className="kbd-hint-bar" style={{ marginTop: '12px', width: '100%' }}>
+            <span style={{ fontWeight: 800, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Keyboard size={14} color="#0284C7" /> Physician Hotkeys:
+            </span>
+            <span><kbd className="shortcut-key">[</kbd> / <kbd className="shortcut-key">]</kbd> Cycle Patients</span>
+            <span><kbd className="shortcut-key">Alt+1..9</kbd> Jump to Patient</span>
+            <span><kbd className="shortcut-key">Alt+E</kbd> Record Encounter</span>
+            <span><kbd className="shortcut-key">Alt+R</kbd> Issue Lab Report</span>
+            <span><kbd className="shortcut-key">Alt+W</kbd> WhatsApp Nudge</span>
+          </div>
         </div>
       </div>
 
@@ -243,7 +313,7 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
             handleCopyAiToConsultationNote={handleCopyAiToConsultationNote}
           />
 
-          {/* Patient Core Clinical Summary Bar */}
+          {/* Patient Core Clinical Summary Bar with Zero-Pill Typography */}
           <div className="card" style={{ padding: '20px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div
@@ -264,13 +334,27 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
                 {doctorDossier.patient.fullName.split(' ').map((n: string) => n[0]).join('')}
               </div>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h2 style={{ fontSize: '1.35rem', color: '#0F172A', margin: 0 }}>{doctorDossier.patient.fullName}</h2>
-                  <span className="badge badge-teal" style={{ fontSize: '0.78rem', fontFamily: 'monospace' }}>{doctorDossier.patient.healthId}</span>
-                  <span className="badge badge-normal">Consent Active</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <h2 style={{ fontSize: '1.45rem', color: '#0F172A', fontWeight: 800, margin: 0 }}>
+                    {doctorDossier.patient.fullName}
+                  </h2>
+                  <span style={{ fontSize: '0.74rem', color: '#059669', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    ● Consent Active
+                  </span>
                 </div>
-                <div style={{ fontSize: '0.84rem', color: '#64748B', marginTop: '4px' }}>
-                  DOB: {doctorDossier.patient.dob} • Sex: {doctorDossier.patient.gender} • Blood: <strong>{doctorDossier.patient.bloodGroup}</strong> • Allergies: <strong style={{ color: '#DC2626' }}>{doctorDossier.patient.allergies?.join(', ') || 'None'}</strong>
+                {/* Zero-Pill Demographic Metadata Row with Typographic Middot Separators */}
+                <div className="clinical-metadata-row" style={{ marginTop: '6px' }}>
+                  <span className="meta-id">{doctorDossier.patient.healthId}</span>
+                  <span className="meta-separator" aria-hidden="true">·</span>
+                  <span className="meta-highlight">{doctorDossier.patient.gender}</span>
+                  <span className="meta-separator" aria-hidden="true">·</span>
+                  <span>DOB: {doctorDossier.patient.dob}</span>
+                  <span className="meta-separator" aria-hidden="true">·</span>
+                  <span className="meta-highlight">Blood Group: {doctorDossier.patient.bloodGroup}</span>
+                  <span className="meta-separator" aria-hidden="true">·</span>
+                  <span>Allergies: <strong style={{ color: doctorDossier.patient.allergies?.length ? '#DC2626' : '#64748B' }}>{doctorDossier.patient.allergies?.join(', ') || 'None'}</strong></span>
+                  <span className="meta-separator" aria-hidden="true">·</span>
+                  <span>Apollo Hospitals New Delhi</span>
                 </div>
               </div>
             </div>
@@ -300,42 +384,33 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
             </div>
           </div>
 
-          {/* Critical Biometric Telemetry & 90-Day Adherence Checkpoint Loop */}
+          {/* Critical Biometric Telemetry & 90-Day Adherence Checkpoint Loop (High-Contrast WCAG AAA Alert) */}
           {doctorDossier.patient.healthId === 'MED-00010001' && (
-            <div style={{
-              background: 'linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%)',
-              border: '2px solid #F43F5E',
-              borderRadius: '16px',
-              padding: '16px 20px',
-              boxShadow: '0 4px 14px rgba(244, 63, 94, 0.12)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '14px'
-            }}>
+            <div className="clinical-panic-banner">
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                 <div style={{
-                  width: '42px',
-                  height: '42px',
+                  width: '44px',
+                  height: '44px',
                   borderRadius: '12px',
-                  background: '#E11D48',
+                  background: '#DC2626',
                   color: '#FFFFFF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '1.25rem',
-                  fontWeight: 900
+                  fontSize: '1.3rem',
+                  fontWeight: 900,
+                  boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)',
+                  flexShrink: 0
                 }}>
                   🚨
                 </div>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#9F1239' }}>
+                    <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#991B1B', letterSpacing: '-0.01em' }}>
                       CRITICAL LAB TELEMETRY &amp; 90-DAY ADHERENCE CHECKPOINT
                     </span>
                     <span style={{
-                      background: '#E11D48',
+                      background: '#DC2626',
                       color: '#FFFFFF',
                       fontSize: '0.68rem',
                       fontWeight: 800,
@@ -345,7 +420,7 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
                       OVERDUE
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#BE123C', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.82rem', color: '#7F1D1D', marginTop: '3px', fontWeight: 500 }}>
                     Type 2 Diabetes Mellitus: Fasting Glucose <strong>312 mg/dL</strong> (&gt;300 mg/dL critical). 90-day HbA1c surveillance milestone elapsed 4 days ago.
                   </div>
                 </div>
@@ -374,7 +449,7 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
                     id="send-whatsapp-nudge-btn"
                     onClick={handleSendPatientNudge}
                     style={{
-                      background: 'linear-gradient(135deg, #25D366, #128C7E)',
+                      background: 'linear-gradient(135deg, #16A34A, #15803D)',
                       border: 'none',
                       color: '#FFFFFF',
                       padding: '8px 16px',
@@ -385,12 +460,12 @@ export const DoctorStation: React.FC<DoctorStationProps> = ({
                       display: 'flex',
                       alignItems: 'center',
                       gap: '7px',
-                      boxShadow: '0 4px 10px rgba(37, 211, 102, 0.35)'
+                      boxShadow: '0 4px 10px rgba(22, 163, 74, 0.35)'
                     }}
-                    title="Dispatch automated proactive reminder via WhatsApp Business API"
+                    title="Dispatch automated proactive reminder via WhatsApp Business API (Alt+W)"
                   >
                     <MessageSquare size={15} />
-                    Nudge Patient via WhatsApp API
+                    Nudge Patient via WhatsApp API <kbd style={{ background: 'rgba(255,255,255,0.25)', padding: '1px 5px', borderRadius: '4px', fontSize: '0.7rem' }}>Alt+W</kbd>
                   </button>
                 )}
               </div>

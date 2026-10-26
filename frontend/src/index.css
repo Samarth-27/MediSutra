@@ -317,3 +317,322 @@ input, select, textarea {
   transform: none;
 }
 
+/* ======================================================== */
+/* CLINICAL DESIGN SYSTEM: HEADER & TOP BAR TOKENS         */
+/* ======================================================== */
+.medisutra-header {
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 74px;
+  gap: 16px;
+}
+
+/* Zone 1: Brand & Logo */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.brand-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+  flex-shrink: 0;
+}
+
+.brand-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-name {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-main);
+  letter-spacing: -0.03em;
+}
+
+.brand-role-quiet {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.05em;
+  background: var(--brand-light);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-border);
+}
+
+.brand-tagline {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Zone 2: Navigation Links */
+.header-nav-bar {
+  background-color: var(--bg-card);
+  border-top: 1px solid #F1F5F9;
+}
+
+.nav-links-track {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 0;
+}
+
+.nav-link-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.nav-link-btn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-main);
+}
+
+.nav-link-btn.active {
+  font-weight: 700;
+  color: var(--brand-primary);
+  background: var(--brand-light);
+  border-bottom-color: var(--brand-primary);
+}
+
+.nav-link-btn.active-blue {
+  font-weight: 700;
+  color: #0284C7;
+  background: #F0F9FF;
+  border-bottom-color: #0284C7;
+}
+
+/* Zone 3: Scoped Profile & Primary Actions */
+.header-actions-zone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.profile-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-app);
+  border: 1.5px solid var(--border-light);
+  padding: 6px 16px;
+  border-radius: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+}
+
+.profile-chip-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  flex-shrink: 0;
+}
+
+.avatar-hospital { background: linear-gradient(135deg, #0F766E, #0D9488); }
+.avatar-doctor { background: linear-gradient(135deg, #0284C7, #0369A1); }
+.avatar-citizen { background: linear-gradient(135deg, #059669, #047857); }
+
+.profile-chip-name {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.profile-chip-badge {
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.badge-scope-hospital { background: #E0F2FE; color: #0369A1; }
+.badge-scope-doctor { background: #E0F2FE; color: #0369A1; }
+.badge-scope-citizen { background: #DCFCE7; color: #15803D; }
+
+.profile-chip-meta {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* Action Buttons */
+.btn-action-arch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  border: none;
+  color: #FFFFFF;
+  padding: 8px 15px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.3);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-action-arch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(13, 148, 136, 0.4);
+}
+
+.btn-action-switch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid #CBD5E1;
+  color: var(--text-secondary);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-action-switch:hover {
+  background: #E2E8F0;
+  color: var(--text-main);
+}
+
+.btn-action-logout {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #FEF2F2;
+  border: 1.5px solid #F87171;
+  color: #B91C1C;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.15);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.btn-action-logout:hover {
+  background: #FEE2E2;
+  border-color: #EF4444;
+}
+
+/* ======================================================== */
+/* CLINICAL ZERO-PILL TYPOGRAPHY & KEYBOARD SHORTCUTS      */
+/* ======================================================== */
+.clinical-metadata-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.82rem;
+  color: #64748B;
+  line-height: 1.4;
+}
+
+.clinical-metadata-row .meta-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 800;
+  color: var(--brand-primary);
+}
+
+.clinical-metadata-row .meta-highlight {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.clinical-metadata-row .meta-separator {
+  color: #94A3B8;
+  padding: 0 2px;
+  user-select: none;
+}
+
+.clinical-metadata-row .meta-danger {
+  font-weight: 700;
+  color: #DC2626;
+}
+
+/* High-Contrast Clinical Panic Alert (WCAG AAA) */
+.clinical-panic-banner {
+  background: #FEF2F2;
+  border: 2px solid #DC2626;
+  border-left-width: 6px;
+  border-radius: 12px;
+  padding: 16px 20px;
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.15);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+/* Physician Keyboard Shortcut Hints */
+.kbd-hint-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 14px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  color: #64748B;
+}
+
+kbd.shortcut-key {
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+

@@ -395,20 +395,8 @@ export const HospitalConsole: React.FC<HospitalConsoleProps> = ({
               </button>
             </div>
 
-            {/* Critical Panic Lab Value Alert Banner for Hospital Station */}
-            <div style={{
-              background: 'linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%)',
-              border: '2px solid #EF4444',
-              borderRadius: '12px',
-              padding: '14px 18px',
-              marginBottom: '18px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '12px',
-              boxShadow: '0 4px 14px rgba(239, 68, 68, 0.15)'
-            }}>
+            {/* Critical Panic Lab Value Alert Banner for Hospital Station (WCAG AAA High-Contrast) */}
+            <div className="clinical-panic-banner" style={{ marginBottom: '18px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
                   width: '38px',
@@ -518,8 +506,14 @@ export const HospitalConsole: React.FC<HospitalConsoleProps> = ({
                             {q.healthId}
                           </div>
                         </td>
-                        <td style={{ padding: '14px 16px', color: '#475569', fontSize: '0.82rem' }}>
-                          {q.age} yrs • {q.gender} • <strong>{q.bloodGroup}</strong>
+                        <td style={{ padding: '14px 16px' }}>
+                          <div className="clinical-metadata-row" style={{ fontSize: '0.8rem' }}>
+                            <span>{q.age} yrs</span>
+                            <span className="meta-separator" aria-hidden="true">·</span>
+                            <span>{q.gender}</span>
+                            <span className="meta-separator" aria-hidden="true">·</span>
+                            <span className="meta-highlight">Blood: {q.bloodGroup}</span>
+                          </div>
                         </td>
                         <td style={{ padding: '14px 16px' }}>
                           {isPanic ? (
