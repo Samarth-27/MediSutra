@@ -7,8 +7,13 @@ import {
   ArrowRight,
   HeartPulse,
   AlertCircle,
-  Cpu
+  Cpu,
+  Palette,
+  Sun,
+  Moon
 } from 'lucide-react';
+import { useThemeStore } from '../stores/useThemeStore';
+import { ThemeCustomizerModal } from './common/ThemeCustomizerModal';
 
 export interface LoginGatekeeperProps {
   hospitals: any[];
@@ -27,6 +32,7 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
   isLoading = false,
   onOpenArchitectureStudio
 }) => {
+  const { mode, toggleMode, isCustomizerOpen, setIsCustomizerOpen } = useThemeStore();
   const [activeTab, setActiveTab] = useState<'HOSPITAL' | 'DOCTOR' | 'CITIZEN'>('HOSPITAL');
   
   // Hospital Form States
@@ -176,6 +182,55 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
               Architecture Audit Studio
             </button>
           )}
+
+          {/* Theme & Colors Trigger */}
+          <button
+            id="gatekeeper-theme-btn"
+            type="button"
+            onClick={() => setIsCustomizerOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: '#FFFFFF',
+              padding: '7px 14px',
+              borderRadius: '20px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title="Configure Clinical Theme & Color System"
+          >
+            <Palette size={14} color="#5EEAD4" />
+            Theme &amp; Colors
+          </button>
+
+          {/* Quick Sun/Moon Toggle */}
+          <button
+            id="gatekeeper-mode-toggle-btn"
+            type="button"
+            onClick={toggleMode}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease'
+            }}
+            title={mode === 'dark' ? 'Switch to Hospital Light Mode' : 'Switch to Clinical Dark Mode'}
+            aria-label="Toggle Light/Dark Mode"
+          >
+            {mode === 'dark' ? <Sun size={15} color="#F59E0B" /> : <Moon size={15} color="#38BDF8" />}
+          </button>
 
           <div style={{
             display: 'flex',
@@ -944,6 +999,12 @@ export const LoginGatekeeper: React.FC<LoginGatekeeperProps> = ({
           MediSutra Clinical Data Highway • Strict Role-Based Partitioning Enforced
         </div>
       </div>
+
+      {/* Dynamic Clinical Theme & Color Customizer Modal */}
+      <ThemeCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+      />
     </div>
   );
 };

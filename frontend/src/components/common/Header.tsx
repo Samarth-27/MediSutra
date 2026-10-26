@@ -12,9 +12,14 @@ import {
   History,
   FileText,
   QrCode,
-  Cpu
+  Cpu,
+  Palette,
+  Sun,
+  Moon
 } from 'lucide-react';
 import type { AuthSession } from '../../types';
+import { useThemeStore } from '../../stores/useThemeStore';
+import { ThemeCustomizerModal } from './ThemeCustomizerModal';
 
 interface HeaderProps {
   authSession: AuthSession;
@@ -45,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const isHospital = authSession.role === 'HOSPITAL_ADMIN';
   const isDoctor = authSession.role === 'DOCTOR';
+  const { mode, toggleMode, isCustomizerOpen, setIsCustomizerOpen } = useThemeStore();
 
   const roleLabel = isHospital
     ? 'HOSPITAL CONSOLE'
@@ -122,6 +128,30 @@ export const Header: React.FC<HeaderProps> = ({
               Architecture Studio
             </button>
           )}
+
+          {/* Theme & Colors Customizer Trigger */}
+          <button
+            id="theme-customizer-btn"
+            type="button"
+            className="btn-action-theme"
+            onClick={() => setIsCustomizerOpen(true)}
+            title="Configure Clinical Theme & Color System"
+          >
+            <Palette size={14} />
+            Theme &amp; Colors
+          </button>
+
+          {/* Quick Sun/Moon Luminance Toggle */}
+          <button
+            id="toggle-luminance-mode-btn"
+            type="button"
+            className="btn-action-mode"
+            onClick={toggleMode}
+            title={mode === 'dark' ? 'Switch to Hospital Light Mode' : 'Switch to Clinical Dark Mode'}
+            aria-label="Toggle Light/Dark Mode"
+          >
+            {mode === 'dark' ? <Sun size={16} color="#F59E0B" /> : <Moon size={16} color="#6366F1" />}
+          </button>
 
           {/* Switch Role Button */}
           <button
@@ -205,6 +235,12 @@ export const Header: React.FC<HeaderProps> = ({
           })}
         </div>
       </div>
+
+      {/* Dynamic Clinical Theme & Color Customizer Modal */}
+      <ThemeCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+      />
     </header>
   );
 };

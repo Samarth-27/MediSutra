@@ -4,7 +4,17 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <title>MediSutra | Unified Longitudinal Health Intelligence Platform</title>
+    <script>
+      (function() {
+        try {
+          var t = localStorage.getItem('medisutra_theme') || 'teal';
+          var m = localStorage.getItem('medisutra_mode') || 'light';
+          document.documentElement.setAttribute('data-theme', t);
+          document.documentElement.setAttribute('data-mode', m);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

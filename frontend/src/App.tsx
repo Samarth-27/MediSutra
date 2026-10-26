@@ -962,15 +962,15 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer style={{ background: '#FFFFFF', borderTop: '1px solid #E2E8F0', padding: '24px 0', marginTop: 'auto' }}>
+      <footer style={{ background: 'var(--bg-card)', borderTop: '1px solid var(--border-light)', padding: '24px 0', marginTop: 'auto' }}>
         <div className="container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
           <div>
-            <span style={{ fontWeight: 700, color: '#0F172A', fontSize: '0.95rem' }}>MediSutra</span>
-            <span style={{ fontSize: '0.8rem', color: '#64748B', marginLeft: '10px' }}>
-              Longitudinal Personal Health Intelligence Platform • Designed for Patients & Treating Clinicians
+            <span style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.95rem' }}>MediSutra</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '10px' }}>
+              Longitudinal Personal Health Intelligence Platform • Designed for Patients &amp; Treating Clinicians
             </span>
           </div>
-          <div style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>
             Built with React 18, Node.js API Gateway, PostgreSQL Data Model, and Clinical Evidence Validation.
           </div>
         </div>
