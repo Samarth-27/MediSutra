@@ -1,0 +1,13 @@
+node_modules
+*/node_modules
+.git
+.github
+.gemini
+dist
+*/dist
+.env
+.env.local
+*.log
+*.pptx
+*.docx
+scratch
